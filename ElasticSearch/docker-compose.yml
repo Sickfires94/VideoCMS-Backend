@@ -1,0 +1,67 @@
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false # For local development simplicity
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g # Adjust memory as needed, but at least 1GB
+    ports:
+      - "${ES_PORT}:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - elastic
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD}
+      - ELASTICSEARCH_SSL_VERIFICATIONMODE=none # For local development simplicity
+      - SERVER_NAME=kibana
+    ports:
+      - "${KIBANA_PORT}:5601"
+    networks:
+      - elastic
+    depends_on:
+      - elasticsearch
+  
+  rabbitmq:
+    image: rabbitmq:3-management # Uses the management plugin for a web UI on port 15672
+    container_name: rabbitmq
+    hostname: rabbitmq # This is the hostname your application will use to connect
+    environment:
+      # You can customize these, but guest/guest are defaults for local dev
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"   # AMQP protocol port for client connections
+      - "15672:15672" # Management UI port (access via http://localhost:15672)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq # Persistent storage for RabbitMQ data
+    networks:
+      - elastic # Connect RabbitMQ to your existing network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s # Gives RabbitMQ some time to initialize before health checks start
+
+
+volumes:
+  esdata:
+    driver: local
+  rabbitmq_data: # Define the volume for RabbitMQ data
+    driver: local
+
+
+networks:
+  elastic:
+    driver: bridge

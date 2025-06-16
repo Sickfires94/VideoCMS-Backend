@@ -1,0 +1,42 @@
+﻿sequenceDiagram
+    
+    User ->>+ Frontend: Types in the searchBar and stops
+    Frontend ->>+ VideoMetadataSearchController: GET /api/video/search/autocomplete [Autocomplete(String text)]
+    VideoMetadataSearchController ->>+ IVideoMetadataSearchService: Autocomplete(String text)
+    IVideoMetadataSearchService ->>+ IVideoMetadataSearchRepository: Autocomplete(String text)
+    IVideoMetadataSearchRepository ->>+ ElasticSearch: Search videoNames beginning with text\
+    ElasticSearch ->>+ IVideoMetadataSearchRepository: List<String> videoNames
+    IVideoMetadataSearchRepository->>+ IVideoMetadataSearchService: List<String> videoNames
+    IVideoMetadataSearchService->>+ VideoMetadataSearchController: List<String> videoNames
+    VideoMetadataSearchController->>+ Frontend: List<String> videoNames
+    Frontend->>+ User: Displays videoNames as autocomplete options
+
+    User ->>+ Frontend: Selects Tags
+    User ->>+ Frontend: Selects Category
+    User ->>+ Frontend: Enters Description
+    User ->>+ Frontend: Clicks Search
+
+    Frontend->>+ VideoMetadataSearchController: searchVideo(List<tags>, category, description) [can be empty to exclude field]
+    VideoMetadataSearchController ->>+ IVideoMetadataSearchService: searchVideo(List<tags>, category, description)
+    IVideoMetadataSearchService ->>+ IVideoMetadataSearchRepository: getCategoryHierarchy(category) [Only called if searching by category]
+    IVideoMetadataSearchRepository ->>+ VideoManagementApplicationContext: getCategoryHierarchy
+    VideoManagementApplicationContext ->>+ Database: getCategoryHierarchy
+    Database->>+ VideoManagementApplicationContext: List<category>
+    VideoManagementApplicationContext->>+ IVideoMetadataSearchRepository: List<category>
+    IVideoMetadataSearchRepository->>+ IVideoMetadataSearchService: List<category>
+    IVideoMetadataSearchService ->>+ IVideoMetadataSearchRepository: searchVideos(List<tag>, List<category>, description)
+    IVideoMetadataSearchRepository ->>+ ElasticSearch: Search for videos with properties (Include fuzzy)
+    ElasticSearch ->>+ IVideoMetadataSearchRepository: List<videoMetadata>
+    IVideoMetadataSearchRepository->>+IVideoMetadataSearchService: List<videoMetadata>
+    IVideoMetadataSearchService->>+VideoMetadataSearchController: List<videoMetadata>
+    VideoMetadataSearchController->>+ Frontend: List<videoMetadata>
+    Frontend->>+ User: Displays List of Videos
+
+
+    User->>+ Frontend: Selects a video
+    Frontend->>+ User: Displays Details for the video
+
+    User->>+ Frontend: Clicks Download
+    Frontend->>+ BlobStorage: Downloads the file using the url in the VideoMetadata previously fetched
+    
+
