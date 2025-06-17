@@ -29,7 +29,7 @@ namespace Backend.Repositories.VideoMetadataRepositories
                         .Query(videoName).Fuzziness("AUTO")
                     )
                 )
-                .Size(1) // We expect only one or the first match
+                .Size(20) // We expect only one or the first match
             );
 
             if (!searchResponse.IsSuccess())
@@ -51,7 +51,7 @@ namespace Backend.Repositories.VideoMetadataRepositories
                         .Query(videoDescription).Fuzziness("AUTO")
                     )
                 )
-                .Size(1)
+                .Size(20)
             );
 
             if (!searchResponse.IsSuccess())
@@ -74,7 +74,7 @@ namespace Backend.Repositories.VideoMetadataRepositories
                         .Query(categoryName).Fuzziness("AUTO")
                     )
                 )
-                .Size(1)
+                .Size(20)
             );
 
             if (!searchResponse.IsSuccess())
@@ -100,7 +100,7 @@ namespace Backend.Repositories.VideoMetadataRepositories
                         .Query(tagName).Fuzziness("AUTO")
                     )
                 )
-                .Size(1)
+                .Size(20)
             );
 
             if (!searchResponse.IsSuccess())

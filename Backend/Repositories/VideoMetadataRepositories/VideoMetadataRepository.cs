@@ -3,6 +3,7 @@ using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services;
 using Backend.Services.RabbitMq;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace Backend.Repositories.VideoMetadataRepositories
 {
@@ -19,6 +20,9 @@ namespace Backend.Repositories.VideoMetadataRepositories
         {
             await _context.videoMetadatas.AddAsync(videoMetadata);
             await _context.SaveChangesAsync();
+
+            Debug.WriteLine("***********************************");
+            Debug.WriteLine("Video Metadata Id: " + videoMetadata.videoId);
 
             return videoMetadata;
       

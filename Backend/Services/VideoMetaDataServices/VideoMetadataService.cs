@@ -3,6 +3,7 @@ using Backend.DTOs;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services.RabbitMq;
 using Backend.Services.VideoMetaDataServices.Interfaces;
+using System.Diagnostics;
 
 namespace Backend.Services.VideoMetaDataServices
 {
@@ -30,9 +31,10 @@ namespace Backend.Services.VideoMetaDataServices
             Console.WriteLine($"Service: Added video metadata for videoId: {videoMetadata.videoId}.");
 
             VideoMetadata video = await _videoMetadataRepository.addVideoMetadata(videoMetadata);
-     
 
-            _producerService.publishVideoMetaDataAsync(videoMetadata);
+            Debug.WriteLine("Video Id to publish " + video.videoId);
+
+            await _producerService.publishVideoMetaDataAsync(video);
             return video;
         }
 

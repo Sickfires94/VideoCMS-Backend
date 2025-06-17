@@ -5,6 +5,7 @@ using Backend.Services.RabbitMq.Interfaces;
 using Backend.Services.VideoMetaDataServices.Interfaces;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace Backend.Services.VideoMetaDataServices
@@ -15,28 +16,33 @@ namespace Backend.Services.VideoMetaDataServices
 
         private readonly string _exchange;
         private readonly string _routingKey;
-        private readonly string _entityType;
 
         public VideoMetadataProducerService(
             IServiceScopeFactory scopeFactory,
-            IOptions<VideoMetadataProducerSettings> settings) // Inject IOptions
+            IOptions<VideoMetadataIndexingOptions> settings) // Inject IOptions
         {
             _scopeFactory = scopeFactory;
-            _exchange = settings.Value.ExchangeName; // Get from settings
+            _exchange = settings.Value.Exchange; // Get from settings
             _routingKey = settings.Value.RoutingKey; // Get from settings
-            _entityType = settings.Value.EntityType; // Get from settings
 
         }
 
-        public void publishVideoMetaDataAsync(VideoMetadata video)
+
+
+        public Task publishVideoMetaDataAsync(VideoMetadata video)
         {
             string videoJson = JsonSerializer.Serialize(video);
             VideoMetadataSyncMessage message = new(videoJson);
 
+            Debug.WriteLine("Video Id at producer" + video.videoId);
+
             using var scope = _scopeFactory.CreateScope();
             var genericPublisher = scope.ServiceProvider.GetRequiredService<IMessageProducer>();
             genericPublisher.produceAsync(message, _routingKey, _exchange);
+
+            return Task.CompletedTask;
         }
+
 
     }
 }

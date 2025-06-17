@@ -16,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using System.Diagnostics;
 
 namespace Backend.Configurations
 {
@@ -71,6 +72,29 @@ namespace Backend.Configurations
             return services;
         }
 
+        public static IServiceCollection InitializeRabbitMqTopology(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<VideoMetadataIndexingOptions>(configuration.GetSection("VideoMetadataIndexingOptions"));
+            services.AddHostedService<RabbitMqTopologyInitializer>();
+            return services;
+        }
+
+        public static IServiceCollection AddIndexVideoMetadataConsumerService(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<VideoMetadataIndexingOptions>(configuration.GetSection("VideoMetadataIndexingOptions"));
+            services.AddHostedService<IndexVideoMetadataConsumerService>(sp =>
+            {
+
+                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                var settings = sp.GetRequiredService<IOptions<VideoMetadataIndexingOptions>>();
+                var connection = sp.GetRequiredService<IRabbitMqConnection>();
+
+                return new IndexVideoMetadataConsumerService(connection, scopeFactory, settings);
+
+            });
+            return services;
+        }
+
 
         public static IServiceCollection AddVideoMetadataRepository(this IServiceCollection services)
         {
@@ -78,7 +102,7 @@ namespace Backend.Configurations
             return services;
         }
 
-        public static IServiceCollection AddGenericPublisher(this IServiceCollection services)
+        public static IServiceCollection AddGenericProducer(this IServiceCollection services)
         {
             services.AddScoped<IMessageProducer, RabbitMqProducerService>();
             return services;
@@ -92,13 +116,13 @@ namespace Backend.Configurations
 
         public static IServiceCollection AddVideoMetadataProducerService(this IServiceCollection services, IConfiguration configuration)
         {
-            services.Configure<VideoMetadataProducerSettings>(configuration.GetSection("VideoMetadataProducer"));
+            services.Configure<VideoMetadataIndexingOptions>(configuration.GetSection("VideoMetadataIndexingOptions"));
 
             services.AddSingleton<IVideoMetaDataProducerService>(provider =>
             {
                 var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
                 var logger = provider.GetRequiredService<ILogger<VideoMetadataProducerService>>();
-                var settings = provider.GetRequiredService<IOptions<VideoMetadataProducerSettings>>();
+                var settings = provider.GetRequiredService<IOptions<VideoMetadataIndexingOptions>>();
 
                 return new VideoMetadataProducerService(
                     scopeFactory,
@@ -132,13 +156,28 @@ namespace Backend.Configurations
             return services;
         }
 
+        public static IServiceCollection AddIndexVideoMetadataService(this IServiceCollection services)
+        {
+            services.AddScoped<IIndexVideoMetadataService, IndexVideoMetadataService>();
+            return services;
+        }
+
+        public static IServiceCollection AddIndexVideoMetadataRepository(this IServiceCollection services)
+        {
+            services.AddScoped<IIndexVideoMetadataRepository, IndexVideoMetadataRepository>();
+            return services;
+        }
+
         public static IServiceCollection AddElasticsearchConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<ElasticSearchCredentials>(configuration.GetSection("backend:ElasticSearch"));
 
-            services.AddSingleton<ElasticsearchClient>(serviceProvider =>
+            services.AddSingleton(serviceProvider =>
             {
                 var config = serviceProvider.GetRequiredService<IOptions<ElasticSearchCredentials>>().Value;
+
+                Debug.WriteLine("*****************************");
+                Debug.WriteLine("Config: " + config.username);
 
                 var settings = new ElasticsearchClientSettings(new Uri(config.ConnectionURL))
                     .Authentication(new BasicAuthentication(config.username, config.password))
@@ -148,6 +187,20 @@ namespace Backend.Configurations
 
                 return new ElasticsearchClient(settings);
             });
+            return services;
+        }
+
+
+        public static IServiceCollection AddVideoMetadataSearchService(this IServiceCollection services)
+        {
+            services.AddScoped<IVideoMetadataSearchService, VideoMetadataSearchService>();
+            return services;
+        }
+
+
+        public static IServiceCollection AddVideoMetadataSearchRepository(this IServiceCollection services)
+        {
+            services.AddScoped<IVideoMetadataSearchingRepository, VideoMetadataSearchingRepository>();
             return services;
         }
 

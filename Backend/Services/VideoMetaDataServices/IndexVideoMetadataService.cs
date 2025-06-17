@@ -12,6 +12,8 @@ namespace Backend.Services.VideoMetaDataServices
         private readonly IIndexVideoMetadataRepository _indexvideoMetadataRepository;
         public IndexVideoMetadataService(IIndexVideoMetadataRepository indexvideoMetadataRepository)
         {
+            Console.WriteLine("***********************************");
+            Console.WriteLine("Initializing Index Video Service");
             _indexvideoMetadataRepository = indexvideoMetadataRepository;
         }
 
@@ -44,7 +46,7 @@ namespace Backend.Services.VideoMetaDataServices
             Console.WriteLine($"Service: Deleted video metadata with ID {videoMetadata.videoId} from index.");
         }
 
-        public async void indexVideoMetadata(VideoMetadata videoMetadata)
+        public async Task indexVideoMetadata(VideoMetadata videoMetadata)
         {
             if (videoMetadata == null)
             {
@@ -53,6 +55,7 @@ namespace Backend.Services.VideoMetaDataServices
 
             await _indexvideoMetadataRepository.indexVideoMetadata(videoMetadata);
             Console.WriteLine($"Service: Indexed video metadata with ID {videoMetadata.videoId}.");
+
         }
     }
 }

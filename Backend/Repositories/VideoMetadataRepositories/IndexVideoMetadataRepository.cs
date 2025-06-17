@@ -1,7 +1,7 @@
 ﻿using Backend.DTOs;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
-using Backend.Services;
 using Elastic.Clients.Elasticsearch;
+using System.Diagnostics;
 
 namespace Backend.Repositories.VideoMetadataRepositories
 {
@@ -13,13 +13,18 @@ namespace Backend.Repositories.VideoMetadataRepositories
 
         public IndexVideoMetadataRepository(ElasticsearchClient client)
         {
+            Console.WriteLine("**************************************");
+            Console.WriteLine("Initializing IndexVideoMetadataRepository with Elasticsearch client.");
             _client = client;
         }
 
 
         public async Task<VideoMetadata> indexVideoMetadata(VideoMetadata videoMetadata)
         {
-            var response = await _client.IndexAsync(videoMetadata, idx => idx
+            Debug.WriteLine("********************************");
+            Debug.WriteLine("videoMetadata: " + videoMetadata.videoId);
+
+            var response = await _client.IndexAsync(videoMetadata, dp => dp
                 .Index(IndexName)
                 .Id(videoMetadata.videoId)
             );

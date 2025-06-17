@@ -13,6 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Define CORS policy name (can be moved to appsettings.json if preferred)
 const string allowAllOrigins = "AllowAll";
 
+builder.Logging.AddConsole();
+
 // --- Service Configuration ---
 builder.Services
     .AddDatabaseConfiguration(builder.Configuration)
@@ -20,11 +22,17 @@ builder.Services
     .AddRabbitMqConfiguration(builder.Configuration)
     .AddAzureBlobStorageConfiguration(builder.Configuration)
     .AddElasticsearchConfiguration(builder.Configuration)
-    .AddGenericPublisher()
+    .InitializeRabbitMqTopology(builder.Configuration)
+    .AddGenericProducer()
     .AddVideoMetadataProducerService(builder.Configuration)
+    .AddIndexVideoMetadataConsumerService(builder.Configuration)
+    .AddIndexVideoMetadataService()
+    .AddIndexVideoMetadataRepository()
     .AddAutoMapper(typeof(Program))
     .AddVideoMetadataRepository()
     .AddVideoMetadataService()
+    .AddVideoMetadataSearchRepository()
+    .AddVideoMetadataSearchService()
     .AddApplicationServices() // Contains UserService
     .AddHealthCheckServices()
     .AddApiCoreServices() // Controllers, Swagger, Endpoints

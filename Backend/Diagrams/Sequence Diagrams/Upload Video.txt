@@ -1,77 +1,165 @@
 sequenceDiagram
-    
+    participant User
+    participant Frontend
+    participant VideoBlobStorageController
+    participant IBlobVideoStorageService
+    participant BlobVideoStorageService
+    participant IBlobStorageRepository
+    participant BlobStorageRepository
+    participant AzureBlobStorage
+    participant TagsGenerationController
+    participant ITagsGenerationService
+    participant TagsGenerationService
+    participant TagsGeneratorAppController
+    participant TagsGeneratorAppService
+    participant CategoryController
+    participant ICategoryService
+    participant CategoryService
+    participant ICategoryRepository
+    participant CategoryRepository
+    participant VideoMetadataController
+    participant IVideoMetadataService
+    participant VideoMetadataService
+    participant IVideoMetadataRepository
+    participant VideoMetadataRepository
+    participant ApplicationDbContext
+    participant Database
+    participant IVideoMetadataProducerService
+    participant VideoMetadataProducerService
+    participant IMessageProducerService
+    participant MessageProducerService
+    participant RabbitMqExchange
+    participant RabbitMqQueue
+    participant IVideoMetadataConsumer
+    participant VideoMetadataConsumer
+    participant IIndexVideoMetadataService
+    participant IndexVideoMetadataService
+    participant IIndexVideoMetadataRepository
+    participant IndexVideoMetadataRepository
+    participant ElasticSearch
+
+    %% Phase 1: Video File Upload to Blob Storage
     User->>Frontend: Opens Video Uploading Page
+    User->>+Frontend: Selects video file and clicks "Upload"
+    Frontend->>+VideoBlobStorageController: POST /api/blob/upload (IFormFile file)
+    VideoBlobStorageController ->> IBlobVideoStorageService: UploadVideo(IFormFile file)
+    IBlobVideoStorageService ->>+ BlobVideoStorageService: UploadVideo(IFormFile file)
+    BlobVideoStorageService ->> IBlobStorageRepository: UploadVideo(IFormFile file)
+    IBlobStorageRepository ->>+ BlobStorageRepository: UploadVideo(IFormFile file)
+    BlobStorageRepository ->>+ AzureBlobStorage: UploadAsync(fileStream, fileName)
+    AzureBlobStorage -->>- BlobStorageRepository: string videoUrl (e.g., https://yourstorage.blob.core.windows.net/videos/fileName.mp4)
+    BlobStorageRepository -->>- BlobVideoStorageService: string videoUrl
+    BlobVideoStorageService -->>- VideoBlobStorageController: string videoUrl
+    VideoBlobStorageController -->>- Frontend: 200 OK (videoUrl)
 
-    User->>+Frontend: Uploads video
-    Frontend->>+VideoBlobStorageController: Upload(IForm file)
-    VideoBlobStorageController->>+IBlobVideoStorageService: UploadVideo()
-    IBlobVideoStorageService->>+IBlobStorageRepository: UploadVideo()
-    IBlobStorageRepository->>Azure: UploadAsync()
-    Azure->>+IBlobStorageRepository: string VideoUrl
-    IBlobStorageRepository->>+IBlobVideoStorageService: string VideoUrl
-    IBlobVideoStorageService->>+VideoBlobStorageController: string videoUrl
-    VideoBlobStorageController->>+Frontend: string videoUrl
+    %% Phase 2: AI-Powered Tag Generation
+    User->>+Frontend: Enters Video Name and Description
+    Frontend->>+TagsGenerationController: POST /api/tags/generate (string videoName, string videoDescription)
+    TagsGenerationController ->> ITagsGenerationService: GenerateTags(string videoName, string videoDescription)
+    ITagsGenerationService ->>+ TagsGenerationService: GenerateTags(string videoName, string videoDescription)
+    TagsGenerationService ->>+ TagsGeneratorAppController: POST /api/generate (TagGenerationRequestDto)
+    TagsGeneratorAppController ->>+ TagsGeneratorAppService: GenerateTags(TagGenerationRequestDto)
+    TagsGeneratorAppService -->>- TagsGeneratorAppController: List<string> suggestedTagNames
+    TagsGeneratorAppController -->>- TagsGenerationService: List<string> suggestedTagNames
+    TagsGenerationService -->>- TagsGenerationController: List<string> suggestedTagNames
+    TagsGenerationController -->>- Frontend: List<string> suggestedTagNames
+    Frontend -->> User: Displays suggested Tags
 
-    User->>+Frontend: Enters Video Name and description
-    Frontend->>+ TagsGenerationController: generateTags(videoName, videoDescription)
-    TagsGenerationController->>+ ITagsGenerationService: generateTags(videoName, videoDescription)
-    ITagsGenerationService -->>+ TagsGeneratorController(separate Application): generateTags(videoName:videoDescription)
-    TagsGeneratorController(separate Application) -->+ TagsGeneratorService(separate Application): generateTags(videoName:videoDescription)
-    TagsGeneratorService(separate Application) -->+ TagsGeneratorController(separate Application) : List<Tag>
-    TagsGeneratorController(separate Application) -->+ ITagsGenerationService : List<Tag>
-    ITagsGenerationService ->+ TagsGenerationController: List<Tag>
-    TagsGenerationController ->+ Frontend: List<Tag>
-    Frontend ->+ User: Displays Tags
+    %% Phase 3: Category Search
+    User->>+Frontend: Searches for a category (e.g., types in "education")
+    Frontend ->>+ CategoryController: GET /api/categories/search?query=<query>
+    CategoryController ->> ICategoryService: SearchCategories(string query)
+    ICategoryService ->>+ CategoryService: SearchCategories(string query)
+    CategoryService ->> ICategoryRepository: SearchCategories(string query)
+    ICategoryRepository ->>+ CategoryRepository: SearchCategories(string query)
+    CategoryRepository ->>+ ApplicationDbContext: Categories.Where(...).Include(...).ToListAsync() (for fuzzy and related search)
+    ApplicationDbContext ->>+ Database: SELECT * FROM Categories WHERE Name LIKE '%query%' OR Description LIKE '%query%' (or more complex fuzzy logic)
+    Database -->>- ApplicationDbContext: List<Category> entities
+    ApplicationDbContext -->>- CategoryRepository: List<Category> entities
+    CategoryRepository -->>- CategoryService: List<Category> entities
+    CategoryService -->>- CategoryController: List<CategoryDto>
+    CategoryController -->>- Frontend: List<CategoryDto>
+    Frontend -->> User: Displays Categories as search results
 
+    %% Phase 4: User Selection of Tags & Category
+    User->>+Frontend: Selects one or more Tags from the suggested list or adds custom tags
+    Frontend-->>User: Displays Tag(s) as selected (multiple can be chosen)
+    User->>+Frontend: Selects a Category from the search results
+    Frontend-->>User: Displays Category as selected (only one can be chosen)
 
-    User->>+Frontend: Selects a Tag
-    Frontend->>+ User: Displays Tag as selected (Multiple Selected)
+    %% Phase 5: Metadata Submission & Persistence
+    User->>+Frontend: Clicks "Submit" (finalizes metadata: name, description, videoUrl, selected tag IDs, selected category ID)
+    Frontend->>+VideoMetadataController: POST /api/video/metadata (VideoMetadataDto)
+    VideoMetadataController ->> IVideoMetadataService: AddVideoMetadata(VideoMetadataDto videoMetadataDto)
+    IVideoMetadataService ->>+ VideoMetadataService: AddVideoMetadata(VideoMetadataDto videoMetadataDto)
 
-    User->>+Frontend: Searches a category
-    Frontend ->>+ CategoryController: SearchCategories(String category) 
-    CategoryController ->>+ ICategoryService: searchCategories(String category)
-    ICategoryService ->>+ ICategoryRepository: searchCategories(String category)
-    ICategoryRepository ->>+ VideoManagementApplicationContext: Searches for categories (Includes Fuzzy and related search results)
+    VideoMetadataService ->> IVideoMetadataRepository: CheckUserExists(videoMetadataDto.userId)
+    IVideoMetadataRepository ->>+ VideoMetadataRepository: CheckUserExists(userId)
+    VideoMetadataRepository ->>+ ApplicationDbContext: Users.AnyAsync(id)
+    ApplicationDbContext ->>+ Database: SELECT 1 FROM Users WHERE Id = @id
+    Database -->>- ApplicationDbContext: Boolean (user exists)
+    ApplicationDbContext -->>- VideoMetadataRepository: Boolean
+    VideoMetadataRepository -->>- VideoMetadataService: Boolean userExists
+    alt if userExists is false
+        VideoMetadataService --x Frontend: Throws ArgumentException / Validation Error
+    end
 
-    VideoManagementApplicationContext->>+ Database: Searches for categories(Includes Fuzzy and related search results)
-    Database->>+ VideoManagementApplicationContext: List<Category>
+    alt if videoMetadataDto.categoryId.HasValue
+        VideoMetadataService ->> ICategoryRepository: CheckCategoryExists(videoMetadataDto.categoryId.Value)
+        ICategoryRepository ->>+ CategoryRepository: CheckCategoryExists(categoryId)
+        CategoryRepository ->>+ ApplicationDbContext: Categories.AnyAsync(id)
+        ApplicationDbContext ->>+ Database: SELECT 1 FROM Categories WHERE Id = @id
+        Database -->>- ApplicationDbContext: Boolean (category exists)
+        ApplicationDbContext -->>- CategoryRepository: Boolean
+        CategoryRepository -->>- VideoMetadataService: Boolean categoryExists
+        alt if categoryExists is false
+            VideoMetadataService --x Frontend: Throws ArgumentException / Validation Error
+        end
+    end
 
-    VideoManagementApplicationContext ->>+ ICategoryRepository: List<Category>
-    ICategoryRepository ->>+ ICategoryService: List<Category>
-    ICategoryService ->>+ CategoryController: List<Category>
-    CategoryController ->>+ Frontend: List<Category>
-    Frontend ->>+ User: Displays Categories
+    alt if videoMetadataDto.tagIds != null and videoMetadataDto.tagIds.Any()
+        VideoMetadataService ->> IVideoMetadataRepository: GetExistingTags(videoMetadataDto.tagIds)
+        IVideoMetadataRepository ->>+ VideoMetadataRepository: GetExistingTags(tagIds)
+        VideoMetadataRepository ->>+ ApplicationDbContext: Tags.Where(t => tagIds.Contains(t.Id)).ToListAsync()
+        ApplicationDbContext ->>+ Database: SELECT * FROM Tags WHERE Id IN (...)
+        Database -->>- ApplicationDbContext: List<Tag> entities
+        ApplicationDbContext -->>- VideoMetadataRepository: List<Tag> entities
+        VideoMetadataRepository -->>- VideoMetadataService: List<Tag> existingTags
+        alt if existingTags.Count != videoMetadataDto.tagIds.Count()
+            VideoMetadataService --x Frontend: Throws ArgumentException / Validation Error (invalid tag IDs)
+        end
+    end
 
-    User->>+Frontend: Selects Category
-    Frontend->>+ User: Displays Category as selected (Only one selected)
+    VideoMetadataService ->> IVideoMetadataRepository: AddVideoMetadata(VideoMetadata entity) (after DTO-to-Entity mapping and relationship hydration)
+    IVideoMetadataRepository ->>+ VideoMetadataRepository: AddVideoMetadata(VideoMetadata entity)
+    VideoMetadataRepository ->>+ ApplicationDbContext: Add(VideoMetadata entity)
+    ApplicationDbContext ->>+ Database: INSERT INTO VideoMetadatas (videoName, videoDescription, videoUrl, userId, categoryId, ...) VALUES (...)
+    Database -->>- ApplicationDbContext: Generated videoId, success
+    ApplicationDbContext ->>+ ApplicationDbContext: SaveChangesAsync()
+    ApplicationDbContext ->>+ Database: EXECUTE sp_executesql ... (Commit transaction)
+    Database -->>- ApplicationDbContext: Transaction success
+    ApplicationDbContext -->>- VideoMetadataRepository: VideoMetadata entity (with generated ID)
+    VideoMetadataRepository -->>- VideoMetadataService: VideoMetadata entity (with generated ID)
 
-    User->>+Frontend: Submits metadata (name, description, videoUrl, etc.)
-    Frontend->>+VideoMetadataController: AddVideoMetadata(VideoMetadata videoMetadata)
-    VideoMetadataController->>+IVideoMetadataService: AddVideoMetadata(VideoMetadata videoMetadata)
-    IVideoMetadataService->>+IVideoMetadataRepository: AddVideoMetadata(VideoMetadata videoMetadata)
-    IVideoMetadataRepository->>+ VideoManagementApplicationContext: Store VideoMetadata
-    VideoManagementApplicationContext->>+ Database: Store VideoMetadata
-    Database ->>+ VideoManagementApplicationContext: VideoMetadata
-    VideoManagementApplicationContext->>+ IVideoMetadataRepository: VideoMetadata
-    IVideoMetadataRepository->>+ IVideoMetadataService: VideoMetadata
+    %% Phase 6: Asynchronous Indexing (via Message Queue)
+    VideoMetadataService ->> IVideoMetadataProducerService: PublishVideoMetadataForIndexing(VideoMetadata entity)
+    IVideoMetadataProducerService ->>+ VideoMetadataProducerService: PublishVideoMetadataForIndexing(VideoMetadata entity)
+    VideoMetadataProducerService ->> IMessageProducerService: Produce(IDataSyncMessage message, string routingKey, string exchangeName)
+    IMessageProducerService ->>+ MessageProducerService: Produce(IDataSyncMessage message, string routingKey, string exchangeName)
+    MessageProducerService ->>+ RabbitMqExchange: Publish(IDataSyncMessage message, routingKey)
+    RabbitMqExchange -->> RabbitMqQueue: Route IDataSyncMessage to queue
+    RabbitMqQueue -->>+ IVideoMetadataConsumer: Consume(IDataSyncMessage message) (e.g., via background service)
+    IVideoMetadataConsumer ->>+ VideoMetadataConsumer: Consume(IDataSyncMessage message)
+    VideoMetadataConsumer ->> IIndexVideoMetadataService: IndexVideoMetadata(VideoMetadataDtoForIndexing) (transformed from IDataSyncMessage)
+    IIndexVideoMetadataService ->>+ IndexVideoMetadataService: IndexVideoMetadata(VideoMetadataDtoForIndexing)
+    IndexVideoMetadataService ->> IIndexVideoMetadataRepository: IndexVideoMetadata(VideoMetadataDtoForIndexing)
+    IIndexVideoMetadataRepository ->>+ IndexVideoMetadataRepository: IndexVideoMetadata(VideoMetadataDtoForIndexing)
+    IndexVideoMetadataRepository ->>+ ElasticSearch: Index Document (VideoMetadataDtoForIndexing content)
+    ElasticSearch -->>- IndexVideoMetadataRepository: Indexing success/acknowledgement
+    IndexVideoMetadataRepository -->>- IndexVideoMetadataService: Success
+    IndexVideoMetadataService -->>- VideoMetadataConsumer: Success
 
-
-
-    IVideoMetadataService-->>+ IVideoMetadataProducerService:  publishVideoMetaData()
-    IVideoMetadataProducerService -->>+ IMessageProducerService: produce(IDataSyncMessage, routingKey, exchange)
-    IMessageProducerService -->>+ VideoMetadataExchange(RabbitMq): IDataSyncMessage
-    VideoMetadataExchange(RabbitMq) -->>+ VideoMetadataQueue(RabbitMq): IDataSyncMessage
-    VideoMetadataQueue(RabbitMq) -->>+ IVideoMetadataConsumer: Consume(IDataSyncMessage)
-    IVideoMetadataConsumer -->>+ IIndexVideoMetadataService: indexVideoMetadata(VideoMetadata)
-    IIndexVideoMetadataService -->>+ IIndexVideoMetadataRepository: indexVideoMetadata(VideoMetadata)
-    IIndexVideoMetadataRepository -->>+ ElasticSearch: videoMetadata
-    ElasticSearch-->>+ IIndexVideoMetadataRepository: videoMetadata
-
-
-    IVideoMetadataService->>+VideoMetadataController: VideoMetadata
-    VideoMetadataController->>+Frontend: VideoMetadata  
-    Frontend->>+ User: Video Saved Successfully message
-
-
-
-
+    %% Phase 7: Final Response
+    VideoMetadataService -->>- VideoMetadataController: VideoMetadataDto (with generated ID)
+    VideoMetadataController -->>- Frontend: 201 Created (Location: /api/video/metadata/{id}, Body: VideoMetadataDto)
+    Frontend -->> User: "Video Saved Successfully!" message and/or redirect to video page

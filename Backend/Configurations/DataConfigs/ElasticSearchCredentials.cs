@@ -2,8 +2,8 @@
 {
     public class ElasticSearchCredentials
     {
-        public string ConnectionURL;
-        public string username;
-        public string password;
+        public string ConnectionURL { get; set; }
+        public string username { get; set; }
+        public string password { get; set; }
     }
 }
