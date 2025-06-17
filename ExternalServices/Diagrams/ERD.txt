@@ -1,0 +1,64 @@
+erDiagram
+
+    users {
+        int userId PK
+        string userName
+        string userPassword
+        string userEmail
+        date userCreatedDate
+        date userUpdatedDate
+    }
+
+    videoMetadata {
+        int videoId PK
+        string videoName
+        string videoDescription
+        string videoUrl
+        int categoryId FK
+        int userId FK
+        date videoUploadDate
+        date videoUpdatedDate
+    }
+
+    tagsVideoMetadata{
+        int tagId PK
+        int videoId PK
+    }
+
+    videoMetadata_changelog {
+        int videoId PK
+        date changeTime PK
+        string changeType
+        string previous_videoName
+        string updated_videoName
+        string previous_videoDescription
+        string updated_videoDescription
+        string previous_videoUrl
+        string updated_videoUrl
+        int previous_categoryId
+        int updated_categoryId
+    }
+
+    categories {
+        int categoryId PK
+        int categoryName
+        int categoryParentId FK
+    }
+
+    tags {
+        int tagId PK
+        string tagName
+    }
+
+
+
+
+    users ||--o{ videoMetadata : uploads
+
+
+
+    videoMetadata }o--o{ tagsVideoMetadata : has
+    tagsVideoMetadata }o--o| tags: has 
+
+    videoMetadata }o--|| categories : contains
+    categories o|--o{ categories : has

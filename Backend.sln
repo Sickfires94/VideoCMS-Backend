@@ -5,7 +5,7 @@ VisualStudioVersion = 17.14.36202.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Backend", "Backend\Backend.csproj", "{6E707FDF-571F-4DC4-8659-4C6E60BDBDC0}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ElasticSearch", "ElasticSearch\ElasticSearch.vcxproj", "{5EF92770-9ED5-414A-AE25-87AE1D77C250}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExternalServices", "ExternalServices\ElasticSearch.vcxproj", "{5EF92770-9ED5-414A-AE25-87AE1D77C250}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

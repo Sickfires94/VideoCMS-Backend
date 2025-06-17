@@ -12,6 +12,7 @@ using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
@@ -65,7 +66,7 @@ namespace Backend.Configurations
                 return new RabbitMqConnection(factory.CreateConnectionAsync().GetAwaiter().GetResult());
             });
 
-            services.AddScoped<IMessageProducer, RabbitMqPublisherService>();
+            services.AddScoped<IMessageProducer, RabbitMqProducerService>();
 
             return services;
         }
@@ -79,7 +80,7 @@ namespace Backend.Configurations
 
         public static IServiceCollection AddGenericPublisher(this IServiceCollection services)
         {
-            services.AddScoped<IMessageProducer, RabbitMqPublisherService>();
+            services.AddScoped<IMessageProducer, RabbitMqProducerService>();
             return services;
         }
 
@@ -89,27 +90,19 @@ namespace Backend.Configurations
             return services;
         }
 
-        public static IServiceCollection AddVideoMetadataProducerService(this IServiceCollection services)
+        public static IServiceCollection AddVideoMetadataProducerService(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddSingleton<IVideoMetaDataProducer, VideoMetadataProducerService>();
-            return services;
-        }
+            services.Configure<VideoMetadataProducerSettings>(configuration.GetSection("VideoMetadataProducer"));
 
-        public static IServiceCollection AddVieoMetadataPublisherService(this IServiceCollection services, IConfiguration configuration)
-        {
-
-
-            services.AddSingleton<IVideoMetaDataProducer>(sp =>
+            services.AddSingleton<IVideoMetaDataProducerService>(provider =>
             {
-                var videoProducerServiceConfig = sp.GetRequiredService<IOptions<VideoMetadataProducerConfig>>().Value;
-                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-
+                var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+                var logger = provider.GetRequiredService<ILogger<VideoMetadataProducerService>>();
+                var settings = provider.GetRequiredService<IOptions<VideoMetadataProducerSettings>>();
 
                 return new VideoMetadataProducerService(
                     scopeFactory,
-                    videoProducerServiceConfig.ExchangeName,
-                    videoProducerServiceConfig.RoutingKey,
-                    videoProducerServiceConfig.EntityType
+                    settings
                 );
             });
 

@@ -9,10 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Sequence Diagrams\Browse Videos.txt" />
+    <Compile Remove="Diagrams\**" />
+    <Content Remove="Diagrams\**" />
+    <EmbeddedResource Remove="Diagrams\**" />
+    <None Remove="Diagrams\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="14.0.0" />
     <PackageReference Include="Azure.Identity" Version="1.14.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.24.1" />
     <PackageReference Include="Elastic.Clients.Elasticsearch" Version="9.0.6" />

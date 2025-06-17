@@ -1,12 +1,15 @@
-﻿using Backend.Contracts;
+﻿using Backend.Configurations.DataConfigs;
+using Backend.Contracts;
 using Backend.DTOs;
 using Backend.Services.RabbitMq.Interfaces;
+using Backend.Services.VideoMetaDataServices.Interfaces;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 
-namespace Backend.Services.RabbitMq
+namespace Backend.Services.VideoMetaDataServices
 {
-    public class VideoMetadataProducerService : IVideoMetaDataProducer
+    public class VideoMetadataProducerService : IVideoMetaDataProducerService
     {
         private readonly IServiceScopeFactory _scopeFactory;
 
@@ -14,14 +17,16 @@ namespace Backend.Services.RabbitMq
         private readonly string _routingKey;
         private readonly string _entityType;
 
-        public VideoMetadataProducerService(IServiceScopeFactory scopefactory, string exchange, string routingKey, string entityType)
+        public VideoMetadataProducerService(
+            IServiceScopeFactory scopeFactory,
+            IOptions<VideoMetadataProducerSettings> settings) // Inject IOptions
         {
-            _scopeFactory = scopefactory;
-            _exchange = exchange;
-            _routingKey = routingKey;
-            _entityType = entityType;
-        }
+            _scopeFactory = scopeFactory;
+            _exchange = settings.Value.ExchangeName; // Get from settings
+            _routingKey = settings.Value.RoutingKey; // Get from settings
+            _entityType = settings.Value.EntityType; // Get from settings
 
+        }
 
         public void publishVideoMetaDataAsync(VideoMetadata video)
         {

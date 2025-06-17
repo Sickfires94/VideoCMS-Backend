@@ -22,7 +22,7 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{5ef92770-9ed5-414a-ae25-87ae1d77c250}</ProjectGuid>
-    <RootNamespace>ElasticSearch</RootNamespace>
+    <RootNamespace>ExternalServices</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>ExternalServices</ProjectName>
   </PropertyGroup>

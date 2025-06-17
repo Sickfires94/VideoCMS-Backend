@@ -7,10 +7,10 @@ using System.Text.Json;
 
 namespace Backend.Services.RabbitMq
 {
-    public class RabbitMqPublisherService : IMessageProducer
+    public class RabbitMqProducerService : IMessageProducer
     {
         private readonly IRabbitMqConnection _connection;
-    public RabbitMqPublisherService(IRabbitMqConnection connection) 
+    public RabbitMqProducerService(IRabbitMqConnection connection) 
         {
             _connection = connection;
         }
@@ -29,18 +29,18 @@ namespace Backend.Services.RabbitMq
                 Persistent = true,
             };
 
-            await channel.QueueDeclareAsync("videoMetaData", true, false, false, null, noWait: true);
-            await channel.ExchangeDeclareAsync(exchange: "videoMetaData",
-                type: ExchangeType.Topic, // <-- Define the type here (e.g., Topic, Direct, Fanout)
+            await channel.QueueDeclareAsync(exchange, true, false, false, null, noWait: true);
+            await channel.ExchangeDeclareAsync(exchange: exchange,
+                type: ExchangeType.Fanout, // <-- Define the type here (e.g., Topic, Direct, Fanout)
                 durable: true,            // <-- The exchange will survive broker restarts
                 autoDelete: false,        // <-- The exchange will NOT be deleted when all queues unbind from it
                 arguments: null);
 
 
             await channel.QueueBindAsync(
-                queue: "videoMetaData",        // The name of the queue you declared
-                exchange: "videoMetaData",     // The name of the exchange you declared
-                routingKey: "", // The routing key for THIS binding.
+                queue: exchange,        // The name of the queue you declared
+                exchange: exchange,     // The name of the exchange you declared
+                routingKey: routingKey, // The routing key for THIS binding.
                 arguments: null,
                 noWait: true
 );
@@ -50,6 +50,7 @@ namespace Backend.Services.RabbitMq
             mandatory: false,
             basicProperties: properties,
             body: body);
+
 
 
         }

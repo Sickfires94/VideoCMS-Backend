@@ -21,7 +21,8 @@ builder.Services
     .AddAzureBlobStorageConfiguration(builder.Configuration)
     .AddElasticsearchConfiguration(builder.Configuration)
     .AddGenericPublisher()
-    .AddVieoMetadataPublisherService(builder.Configuration)
+    .AddVideoMetadataProducerService(builder.Configuration)
+    .AddAutoMapper(typeof(Program))
     .AddVideoMetadataRepository()
     .AddVideoMetadataService()
     .AddApplicationServices() // Contains UserService

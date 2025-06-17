@@ -1,7 +1,7 @@
-﻿using Backend.DTOs;
+﻿using AutoMapper;
+using Backend.DTOs;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services.RabbitMq;
-using Backend.Services.RabbitMq.Interfaces;
 using Backend.Services.VideoMetaDataServices.Interfaces;
 
 namespace Backend.Services.VideoMetaDataServices
@@ -9,12 +9,12 @@ namespace Backend.Services.VideoMetaDataServices
     public class VideoMetadataService : IVideoMetadataService
     {
         private readonly IVideoMetadataRepository _videoMetadataRepository;
-        private readonly IVideoMetaDataProducer _producerService;
+        private readonly IVideoMetaDataProducerService _producerService;
 
 
-        public VideoMetadataService(IVideoMetadataRepository videoMetadataRepository, IVideoMetaDataProducer videoMetadataProducerService) { 
+        public VideoMetadataService(IVideoMetadataRepository videoMetadataRepository, IVideoMetaDataProducerService videoMetadataProducerService, IMapper mapper)
+        {
             _videoMetadataRepository = videoMetadataRepository;
-
             _producerService = videoMetadataProducerService;
 
         }
@@ -26,9 +26,11 @@ namespace Backend.Services.VideoMetaDataServices
             }
 
 
+
             Console.WriteLine($"Service: Added video metadata for videoId: {videoMetadata.videoId}.");
 
             VideoMetadata video = await _videoMetadataRepository.addVideoMetadata(videoMetadata);
+     
 
             _producerService.publishVideoMetaDataAsync(videoMetadata);
             return video;

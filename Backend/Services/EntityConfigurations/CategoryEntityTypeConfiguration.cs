@@ -13,7 +13,7 @@ namespace Backend.Services.Configurations
             builder.Property(c => c.categoryId)
                 .ValueGeneratedOnAdd();
 
-            builder.HasOne(c => c.categoryParentId)
+            builder.HasOne(c => c.categoryParent)
                .WithMany()
                .IsRequired(false)
                .OnDelete(DeleteBehavior.NoAction);

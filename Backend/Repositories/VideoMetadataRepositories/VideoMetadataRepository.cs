@@ -17,14 +17,16 @@ namespace Backend.Repositories.VideoMetadataRepositories
 
         public async Task<VideoMetadata> addVideoMetadata(VideoMetadata videoMetadata)
         {
-            VideoMetadata video = (await _context.videoMetadatas.AddAsync(videoMetadata)).Entity;
+            await _context.videoMetadatas.AddAsync(videoMetadata);
+            await _context.SaveChangesAsync();
+
+            return videoMetadata;
       
-            return video;
 
         }
 
         public Task<List<VideoMetadata>> getAllVideoMetadata()
-        {
+        {   
             return  _context.videoMetadatas.ToListAsync();
         }
 
