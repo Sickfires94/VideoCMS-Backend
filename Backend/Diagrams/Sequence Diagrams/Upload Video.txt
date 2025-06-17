@@ -1,0 +1,77 @@
+sequenceDiagram
+    
+    User->>Frontend: Opens Video Uploading Page
+
+    User->>+Frontend: Uploads video
+    Frontend->>+VideoBlobStorageController: Upload(IForm file)
+    VideoBlobStorageController->>+IBlobVideoStorageService: UploadVideo()
+    IBlobVideoStorageService->>+IBlobStorageRepository: UploadVideo()
+    IBlobStorageRepository->>Azure: UploadAsync()
+    Azure->>+IBlobStorageRepository: string VideoUrl
+    IBlobStorageRepository->>+IBlobVideoStorageService: string VideoUrl
+    IBlobVideoStorageService->>+VideoBlobStorageController: string videoUrl
+    VideoBlobStorageController->>+Frontend: string videoUrl
+
+    User->>+Frontend: Enters Video Name and description
+    Frontend->>+ TagsGenerationController: generateTags(videoName, videoDescription)
+    TagsGenerationController->>+ ITagsGenerationService: generateTags(videoName, videoDescription)
+    ITagsGenerationService -->>+ TagsGeneratorController(separate Application): generateTags(videoName:videoDescription)
+    TagsGeneratorController(separate Application) -->+ TagsGeneratorService(separate Application): generateTags(videoName:videoDescription)
+    TagsGeneratorService(separate Application) -->+ TagsGeneratorController(separate Application) : List<Tag>
+    TagsGeneratorController(separate Application) -->+ ITagsGenerationService : List<Tag>
+    ITagsGenerationService ->+ TagsGenerationController: List<Tag>
+    TagsGenerationController ->+ Frontend: List<Tag>
+    Frontend ->+ User: Displays Tags
+
+
+    User->>+Frontend: Selects a Tag
+    Frontend->>+ User: Displays Tag as selected (Multiple Selected)
+
+    User->>+Frontend: Searches a category
+    Frontend ->>+ CategoryController: SearchCategories(String category) 
+    CategoryController ->>+ ICategoryService: searchCategories(String category)
+    ICategoryService ->>+ ICategoryRepository: searchCategories(String category)
+    ICategoryRepository ->>+ VideoManagementApplicationContext: Searches for categories (Includes Fuzzy and related search results)
+
+    VideoManagementApplicationContext->>+ Database: Searches for categories(Includes Fuzzy and related search results)
+    Database->>+ VideoManagementApplicationContext: List<Category>
+
+    VideoManagementApplicationContext ->>+ ICategoryRepository: List<Category>
+    ICategoryRepository ->>+ ICategoryService: List<Category>
+    ICategoryService ->>+ CategoryController: List<Category>
+    CategoryController ->>+ Frontend: List<Category>
+    Frontend ->>+ User: Displays Categories
+
+    User->>+Frontend: Selects Category
+    Frontend->>+ User: Displays Category as selected (Only one selected)
+
+    User->>+Frontend: Submits metadata (name, description, videoUrl, etc.)
+    Frontend->>+VideoMetadataController: AddVideoMetadata(VideoMetadata videoMetadata)
+    VideoMetadataController->>+IVideoMetadataService: AddVideoMetadata(VideoMetadata videoMetadata)
+    IVideoMetadataService->>+IVideoMetadataRepository: AddVideoMetadata(VideoMetadata videoMetadata)
+    IVideoMetadataRepository->>+ VideoManagementApplicationContext: Store VideoMetadata
+    VideoManagementApplicationContext->>+ Database: Store VideoMetadata
+    Database ->>+ VideoManagementApplicationContext: VideoMetadata
+    VideoManagementApplicationContext->>+ IVideoMetadataRepository: VideoMetadata
+    IVideoMetadataRepository->>+ IVideoMetadataService: VideoMetadata
+
+
+
+    IVideoMetadataService-->>+ IVideoMetadataProducerService:  publishVideoMetaData()
+    IVideoMetadataProducerService -->>+ IMessageProducerService: produce(IDataSyncMessage, routingKey, exchange)
+    IMessageProducerService -->>+ VideoMetadataExchange(RabbitMq): IDataSyncMessage
+    VideoMetadataExchange(RabbitMq) -->>+ VideoMetadataQueue(RabbitMq): IDataSyncMessage
+    VideoMetadataQueue(RabbitMq) -->>+ IVideoMetadataConsumer: Consume(IDataSyncMessage)
+    IVideoMetadataConsumer -->>+ IIndexVideoMetadataService: indexVideoMetadata(VideoMetadata)
+    IIndexVideoMetadataService -->>+ IIndexVideoMetadataRepository: indexVideoMetadata(VideoMetadata)
+    IIndexVideoMetadataRepository -->>+ ElasticSearch: videoMetadata
+    ElasticSearch-->>+ IIndexVideoMetadataRepository: videoMetadata
+
+
+    IVideoMetadataService->>+VideoMetadataController: VideoMetadata
+    VideoMetadataController->>+Frontend: VideoMetadata  
+    Frontend->>+ User: Video Saved Successfully message
+
+
+
+

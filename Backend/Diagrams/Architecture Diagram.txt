@@ -1,0 +1,44 @@
+﻿flowchart
+  
+   subgraph Backend
+    subgraph .NET Backend 
+
+        Controllers
+        Services
+        Repositories
+    end
+
+    db[("SQL Server DB")]
+    es[("Elasticsearch")]
+    RabbitMQ
+    blob[/"Azure Blob Storage"/]
+    recommender["Python Tags Generation Service"]
+    
+  end
+
+  
+  
+  subgraph Angular Frontend
+    Models
+    Views 
+    VM["View Models"]
+
+    VM -- Updates --> Models 
+    VM -- Renders --> Views
+    Models -- Requests data --> Controllers
+
+  end
+  
+
+    Services -- Produces --> RabbitMQ
+    RabbitMQ -- Consumes --> Services
+
+
+    Controllers --> Services
+    Services --> Repositories
+
+    Repositories --> db
+    Repositories --> es
+    Repositories --> blob
+    Services -- REST API --> recommender 
+

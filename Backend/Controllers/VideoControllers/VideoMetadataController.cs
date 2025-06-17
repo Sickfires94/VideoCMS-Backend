@@ -26,7 +26,7 @@ namespace Backend.Controllers.VideoControllers
         }
 
         [HttpPost]
-        public async Task<VideoMetadata> Post([FromBody] VideoMetadata video, [FromBody] List<int> tagsId)
+        public async Task<VideoMetadata> Post([FromBody] VideoMetadata video)
         {
             /// TODO insert adding tags logic after implementing tags 
             return await _videoMetadataService.addVideoMetadata(video);
