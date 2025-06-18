@@ -43,24 +43,28 @@ sequenceDiagram
     Note right of Frontend: Displays video upload form.
     User->>+Frontend: Selects video file and clicks "Upload"
     Note right of Frontend: File chosen by user from local system.
-    Frontend->>+VideoBlobStorageController: POST /api/blob/upload (IFormFile file)
-    Note right of VideoBlobStorageController: Receives the video file as multipart/form-data.
-    VideoBlobStorageController ->> IBlobVideoStorageService: UploadVideo(IFormFile file)
+    Frontend->>+VideoBlobStorageController: GET /api/blob/sas-token?fileName=<fileName>
+    Note right of VideoBlobStorageController: Requests a SAS token for direct upload.
+    VideoBlobStorageController ->> IBlobVideoStorageService: GenerateSasToken(fileName)
     Note left of IBlobVideoStorageService: Interface for video blob storage operations.
-    IBlobVideoStorageService ->>+ BlobVideoStorageService: UploadVideo(IFormFile file)
-    Note right of BlobVideoStorageService: Implements the video upload logic.
-    BlobVideoStorageService ->> IBlobStorageRepository: UploadVideo(IFormFile file)
+    IBlobVideoStorageService ->>+ BlobVideoStorageService: GenerateSasToken(fileName)
+    Note right of BlobVideoStorageService: Implements the SAS token generation logic.
+    BlobVideoStorageService ->> IBlobStorageRepository: GenerateSasToken(fileName)
     Note left of IBlobStorageRepository: Interface for general blob storage interactions.
-    IBlobStorageRepository ->>+ BlobStorageRepository: UploadVideo(IFormFile file)
-    Note right of BlobStorageRepository: Handles the concrete interaction with Azure Blob Storage SDK.
-    BlobStorageRepository ->>+ AzureBlobStorage: UploadAsync(fileStream, fileName)
-    Note right of AzureBlobStorage: Azure Blob Storage service receives and stores the file.
-    AzureBlobStorage -->>- BlobStorageRepository: string videoUrl (e.g., https://yourstorage.blob.core.windows.net/videos/fileName.mp4)
-    Note left of BlobStorageRepository: Returns the public URL of the uploaded video.
-    BlobStorageRepository -->>- BlobVideoStorageService: string videoUrl
-    BlobVideoStorageService -->>- VideoBlobStorageController: string videoUrl
-    VideoBlobStorageController -->>- Frontend: 200 OK (videoUrl)
-    Note left of Frontend: Frontend receives the URL to link the video later.
+    IBlobStorageRepository ->>+ BlobStorageRepository: GenerateSasToken(fileName)
+    Note right of BlobStorageRepository: Calls Azure SDK to generate a SAS token with write permissions.
+    BlobStorageRepository ->>+ AzureBlobStorage: GetContainerClient().GetBlobClient(fileName).GetSharedAccessUri(...)
+    Note right of AzureBlobStorage: Azure service generates the SAS token.
+    AzureBlobStorage -->>- BlobStorageRepository: string sasTokenUrl (e.g., https://yourstorage.blob.core.windows.net/videos/fileName.mp4?sv=...&se=...&sr=b&sp=w...)
+    Note left of BlobStorageRepository: Returns the URL with the appended SAS token.
+    BlobStorageRepository -->>- BlobVideoStorageService: string sasTokenUrl
+    BlobVideoStorageService -->>- VideoBlobStorageController: string sasTokenUrl
+    VideoBlobStorageController -->>- Frontend: 200 OK (sasTokenUrl)
+    Note left of Frontend: Frontend receives the SAS token URL for direct upload.
+    Frontend->>+AzureBlobStorage: PUT /<container>/<fileName>?<sasToken> (videoFileStream)
+    Note right of AzureBlobStorage: Frontend directly uploads the video file using the received SAS token.
+    AzureBlobStorage -->>- Frontend: 201 Created / 200 OK (Confirmation)
+    Note left of Frontend: Azure Blob Storage confirms the direct upload.
 
     %% Phase 2: AI-Powered Tag Generation
     User->>+Frontend: Enters Video Name and Description
@@ -149,6 +153,7 @@ sequenceDiagram
         Note left of ICategoryRepository: Reuses category repository to validate category ID.
         ICategoryRepository ->>+ CategoryRepository: CheckCategoryExists(categoryId)
         CategoryRepository ->>+ ApplicationDbContext: Categories.AnyAsync(id)
+        Note right of ApplicationDbContext: Uses EF to check category existence.
         ApplicationDbContext ->>+ Database: SELECT 1 FROM Categories WHERE Id = @id
         Note right of Database: SQL query for category existence check.
         Database -->>- ApplicationDbContext: Boolean (category exists)
@@ -165,6 +170,7 @@ sequenceDiagram
         Note left of IVideoMetadataRepository: Retrieves tag entities to validate provided tag IDs.
         IVideoMetadataRepository ->>+ VideoMetadataRepository: GetExistingTags(tagIds)
         VideoMetadataRepository ->>+ ApplicationDbContext: Tags.Where(t => tagIds.Contains(t.Id)).ToListAsync()
+        Note right of ApplicationDbContext: Uses EF to query tags by IDs.
         ApplicationDbContext ->>+ Database: SELECT * FROM Tags WHERE Id IN (...)
         Note right of Database: SQL query to get existing tags.
         Database -->>- ApplicationDbContext: List<Tag> entitie

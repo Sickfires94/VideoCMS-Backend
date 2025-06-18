@@ -15,92 +15,146 @@
 
     %% User Interaction: Search & Autocomplete
     User ->>+ Frontend: Types in search bar and stops
+    Note right of Frontend: User input for search query.
     Frontend ->>+ VideoMetadataController: GET /api/video/search/autocomplete?text=<text>
+    Note right of VideoMetadataController: API endpoint for autocomplete suggestions.
     VideoMetadataController ->> IVideoMetadataService: Autocomplete(text)
+    Note left of IVideoMetadataService: Interface for video metadata service operations.
     IVideoMetadataService ->>+ VideoMetadataService: Autocomplete(text)
+    Note right of VideoMetadataService: Business logic for autocomplete functionality.
     VideoMetadataService ->> IVideoMetadataRepository: Autocomplete(text)
+    Note left of IVideoMetadataRepository: Interface for video metadata data access.
     IVideoMetadataRepository ->>+ VideoMetadataRepository: Autocomplete(text)
+    Note right of VideoMetadataRepository: Executes autocomplete query against Elasticsearch.
     VideoMetadataRepository ->>+ ElasticSearch: Search videoNames beginning with text (fuzzy)
+    Note right of ElasticSearch: Elasticsearch performs a fast, fuzzy prefix search on video names.
     ElasticSearch -->>- VideoMetadataRepository: List<String> videoNames
+    Note left of VideoMetadataRepository: Returns matching video names.
     VideoMetadataRepository -->>- VideoMetadataService: List<String> videoNames
     VideoMetadataService -->>- VideoMetadataController: List<String> videoNames
     VideoMetadataController -->>- Frontend: List<String> videoNames
+    Note left of Frontend: Displays the suggested video names as autocomplete options.
     Frontend -->> User: Displays videoNames as autocomplete options
 
     User ->> Frontend: Selects Tags
+    Note right of Frontend: User chooses from suggested or custom tags.
     User ->> Frontend: Selects Category
+    Note right of Frontend: User chooses a category for filtering.
     User ->> Frontend: Enters Description
+    Note right of Frontend: User provides additional keywords for description search.
     User ->>+ Frontend: Clicks Search
+    Note right of Frontend: Initiates the detailed video search.
     Frontend ->>+ VideoMetadataController: GET /api/video/search?tags=<ids>&categoryId=<id>&description=<text>
+    Note right of VideoMetadataController: API endpoint for complex video search.
     VideoMetadataController ->> IVideoMetadataService: SearchVideos(List<int> tagIds, int? categoryId, string description)
+    Note left of IVideoMetadataService: Orchestrates the video search logic.
     IVideoMetadataService ->>+ VideoMetadataService: SearchVideos(List<int> tagIds, int? categoryId, string description)
 
     alt if categoryId is provided in DTO
         VideoMetadataService ->> ICategoryRepository: GetCategoryHierarchy(categoryId)
+        Note left of ICategoryRepository: Interface for category data access.
         ICategoryRepository ->>+ CategoryRepository: GetCategoryHierarchy(categoryId)
+        Note right of CategoryRepository: Retrieves the full category hierarchy (parent/children).
         CategoryRepository ->>+ ApplicationDbContext: Categories.Where(...).ToList()
+        Note right of ApplicationDbContext: Uses EF to query category hierarchy.
         ApplicationDbContext ->>+ Database: SELECT * FROM Categories WHERE ...
+        Note right of Database: SQL query for category hierarchy.
         Database -->>- ApplicationDbContext: List<Category> entities
         ApplicationDbContext -->>- CategoryRepository: List<Category> entities
         CategoryRepository -->>- VideoMetadataService: List<Category> hierarchy
+        Note left of VideoMetadataService: Category hierarchy is used to broaden the search in Elasticsearch.
     end
 
     VideoMetadataService ->> IVideoMetadataRepository: SearchVideos(List<int> tagIds, List<Category> categoryHierarchy, string description)
+    Note left of IVideoMetadataRepository: Passes all search criteria to the repository.
     IVideoMetadataRepository ->>+ VideoMetadataRepository: SearchVideos(...)
+    Note right of VideoMetadataRepository: Constructs the complex Elasticsearch query.
     VideoMetadataRepository ->>+ ElasticSearch: Search for videos with properties (tagIds, category IDs, description, fuzzy)
+    Note right of ElasticSearch: Elasticsearch performs a multi-field search with fuzzy matching.
     ElasticSearch -->>- VideoMetadataRepository: List<VideoMetadata> entities
+    Note left of VideoMetadataRepository: Returns matched video metadata entities.
     VideoMetadataRepository -->>- VideoMetadataService: List<VideoMetadata> entities
+    Note right of VideoMetadataService: Maps entities to DTOs for frontend.
     VideoMetadataService -->>- VideoMetadataController: List<VideoMetadataDto>
     VideoMetadataController -->>- Frontend: List<VideoMetadataDto> (brief details)
+    Note left of Frontend: Displays a list of search results with brief video details.
     Frontend -->> User: Displays List of Videos
 
     %% User Interaction: View Details & Download
     User ->>+ Frontend: Selects a video
+    Note right of Frontend: User clicks on a video from the search results.
     Frontend ->>+ VideoMetadataController: GET /api/video/{videoId}
+    Note right of VideoMetadataController: API endpoint for retrieving full video metadata.
     VideoMetadataController ->> IVideoMetadataService: GetVideoMetadataById(videoId)
+    Note left of IVideoMetadataService: Business logic for fetching a single video's metadata.
     IVideoMetadataService ->>+ VideoMetadataService: GetVideoMetadataById(videoId)
     VideoMetadataService ->> IVideoMetadataRepository: GetVideoMetadataById(videoId)
+    Note left of IVideoMetadataRepository: Data access for fetching a single video's metadata.
     IVideoMetadataRepository ->>+ VideoMetadataRepository: GetVideoMetadataById(videoId)
+    Note right of VideoMetadataRepository: Uses Entity Framework to query the primary database.
     VideoMetadataRepository ->>+ ApplicationDbContext: VideoMetadatas.Include(User).Include(Category).Include(Tags).FirstOrDefaultAsync(id)
+    Note right of ApplicationDbContext: EF loads video metadata along with related user, category, and tags.
     ApplicationDbContext ->>+ Database: SELECT * FROM VideoMetadatas JOIN Users JOIN Categories JOIN Tags WHERE videoId = @id
+    Note right of Database: SQL query to retrieve video metadata and related entities.
     Database -->>- ApplicationDbContext: VideoMetadata entity (with relations)
     ApplicationDbContext -->>- VideoMetadataRepository: VideoMetadata entity
     VideoMetadataRepository -->>- VideoMetadataService: VideoMetadata entity
+    Note right of VideoMetadataService: Maps the entity to a detailed DTO.
     VideoMetadataService -->>- VideoMetadataController: VideoMetadataDto (full details)
     VideoMetadataController -->>- Frontend: VideoMetadataDto (full details)
+    Note left of Frontend: Displays all details for the selected video.
     Frontend -->> User: Displays Details for the video
 
     User ->>+ Frontend: Clicks Download
+    Note right of Frontend: User wants to download the video file.
     Frontend ->>+ BlobStorage: Downloads file using videoUrl from displayed details
+    Note right of BlobStorage: Frontend uses the pre-obtained video URL to directly download from blob storage.
     BlobStorage -->>- Frontend: Video File Stream
+    Note left of Frontend: Frontend receives the video file stream.
     Frontend -->> User: User's browser downloads file
+    Note right of User: The video file is downloaded to the user's local system.
 
-
-    %% User Interaction: Video Upload
+    %% User Interaction: Video Upload (This section seems to be a duplicate or re-ordered, ensuring notes reflect the flow from the provided diagram)
     User ->>+ Frontend: Clicks "Upload Video"
+    Note right of Frontend: User initiates the video upload process.
     Frontend ->> User: Prompts for video file and metadata (name, description, tags, category, etc.)
+    Note right of User: Frontend guides the user through providing necessary information.
     User ->>+ Frontend: Selects video file, enters metadata, Clicks Submit
+    Note right of Frontend: User provides all required input and submits the form.
 
     Frontend ->>+ BlobStorage: Uploads video file (e.g., PUT /<container>/<fileName> or POST with SAS)
+    Note right of BlobStorage: Frontend directly uploads the raw video file to the blob storage.
     BlobStorage -->>- Frontend: Video URL (e.g., temporary or final direct URL)
+    Note left of Frontend: Frontend receives the URL of the uploaded video.
 
     Frontend ->>+ VideoMetadataController: POST /api/video
+    Note right of VideoMetadataController: API endpoint for submitting video metadata.
     VideoMetadataController ->> IVideoMetadataService: AddVideoMetadata(VideoMetadataDto videoDto)
+    Note left of IVideoMetadataService: Interface for adding new video metadata.
     IVideoMetadataService ->>+ VideoMetadataService: AddVideoMetadata(VideoMetadataDto videoDto)
+    Note right of VideoMetadataService: Business logic for adding video metadata.
 
     VideoMetadataService ->> IVideoMetadataRepository: CheckUserExists(videoDto.userId)
+    Note left of IVideoMetadataRepository: Verifies the existence of the user.
     IVideoMetadataRepository ->>+ VideoMetadataRepository: CheckUserExists(userId)
+    Note right of VideoMetadataRepository: Data access for user existence check.
     VideoMetadataRepository ->>+ ApplicationDbContext: Users.AnyAsync(id)
+    Note right of ApplicationDbContext: Uses EF to check user existence.
     ApplicationDbContext ->>+ Database: SELECT 1 FROM Users WHERE userId = @id
+    Note right of Database: SQL query for user ID validation.
     Database -->>- ApplicationDbContext: Boolean (user exists)
     ApplicationDbContext -->>- VideoMetadataRepository: Boolean
     VideoMetadataRepository -->>- VideoMetadataService: Boolean userExists
 
     alt if videoDto.categoryId.HasValue
         VideoMetadataService ->> ICategoryRepository: CheckCategoryExists(videoDto.categoryId.Value)
+        Note left of ICategoryRepository: Verifies the existence of the category.
         ICategoryRepository ->>+ CategoryRepository: CheckCategoryExists(categoryId)
+        Note right of CategoryRepository: Data access for category existence check.
         CategoryRepository ->>+ ApplicationDbContext: Categories.AnyAsync(id)
+        Note right of ApplicationDbContext: Uses EF to check category existence.
         ApplicationDbContext ->>+ Database: SELECT 1 FROM Categories WHERE categoryId = @id
+        Note right of Database: SQL query for category ID validation.
         Database -->>- ApplicationDbContext: Boolean (category exists)
         ApplicationDbContext -->>- CategoryRepository: Boolean
         CategoryRepository -->>- VideoMetadataService: Boolean categoryExists
@@ -108,24 +162,37 @@
 
     alt if videoDto.tagIds != null and videoDto.tagIds.Any()
         VideoMetadataService ->> IVideoMetadataRepository: GetExistingTags(videoDto.tagIds)
+        Note left of IVideoMetadataRepository: Retrieves existing tags from the database.
         IVideoMetadataRepository ->>+ VideoMetadataRepository: GetExistingTags(tagIds)
+        Note right of VideoMetadataRepository: Data access for retrieving tags.
         VideoMetadataRepository ->>+ ApplicationDbContext: Tags.Where(id in tagIds).ToListAsync()
+        Note right of ApplicationDbContext: Uses EF to query tags by IDs.
         ApplicationDbContext ->>+ Database: SELECT * FROM Tags WHERE tagId IN (...)
+        Note right of Database: SQL query for tag ID validation.
         Database -->>- ApplicationDbContext: List<Tag> entities
         ApplicationDbContext -->>- VideoMetadataRepository: List<Tag> entities
         VideoMetadataRepository -->>- VideoMetadataService: List<Tag> existingTags
     end
 
     VideoMetadataService ->> VideoMetadataRepository: SaveVideoMetadata(VideoMetadata entity)
+    Note left of VideoMetadataRepository: Prepares the video metadata entity for saving.
     IVideoMetadataRepository ->>+ VideoMetadataRepository: SaveVideoMetadata(VideoMetadata entity)
+    Note right of VideoMetadataRepository: Handles the persistence of video metadata.
     VideoMetadataRepository ->>+ ApplicationDbContext: Add(VideoMetadata entity) & SaveChangesAsync()
+    Note right of ApplicationDbContext: EF adds and saves the new video metadata record.
     ApplicationDbContext ->>+ Database: INSERT INTO VideoMetadatas (Columns) VALUES (Values)
+    Note right of Database: Database performs the actual insert operation.
     Database -->>- ApplicationDbContext: Generated videoId, success
+    Note left of ApplicationDbContext: Database returns the newly generated ID.
     ApplicationDbContext -->>- VideoMetadataRepository: VideoMetadata entity (with generated ID)
     VideoMetadataRepository -->>- VideoMetadataService: VideoMetadata entity (with generated ID)
 
     VideoMetadataService ->>+ ElasticSearch: Index VideoMetadata(VideoMetadata entity)
+    Note right of ElasticSearch: Video metadata is indexed for search capabilities.
     ElasticSearch -->>- VideoMetadataService: Indexing confirmation
+    Note left of VideoMetadataService: Receives confirmation of successful indexing.
     VideoMetadataService -->>- VideoMetadataController: VideoMetadataDto (with generated ID)
     VideoMetadataController -->>- Frontend: 201 Created (Location header, VideoMetadataDto)
+    Note left of Frontend: Sends HTTP 201 response with location and created resource.
     Frontend -->> User: Video Uploaded Successfully!
+    Note right of User: User receives confirmation of successful video upload.
