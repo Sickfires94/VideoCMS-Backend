@@ -40,136 +40,215 @@ sequenceDiagram
 
     %% Phase 1: Video File Upload to Blob Storage
     User->>Frontend: Opens Video Uploading Page
+    Note right of Frontend: Displays video upload form.
     User->>+Frontend: Selects video file and clicks "Upload"
+    Note right of Frontend: File chosen by user from local system.
     Frontend->>+VideoBlobStorageController: POST /api/blob/upload (IFormFile file)
+    Note right of VideoBlobStorageController: Receives the video file as multipart/form-data.
     VideoBlobStorageController ->> IBlobVideoStorageService: UploadVideo(IFormFile file)
+    Note left of IBlobVideoStorageService: Interface for video blob storage operations.
     IBlobVideoStorageService ->>+ BlobVideoStorageService: UploadVideo(IFormFile file)
+    Note right of BlobVideoStorageService: Implements the video upload logic.
     BlobVideoStorageService ->> IBlobStorageRepository: UploadVideo(IFormFile file)
+    Note left of IBlobStorageRepository: Interface for general blob storage interactions.
     IBlobStorageRepository ->>+ BlobStorageRepository: UploadVideo(IFormFile file)
+    Note right of BlobStorageRepository: Handles the concrete interaction with Azure Blob Storage SDK.
     BlobStorageRepository ->>+ AzureBlobStorage: UploadAsync(fileStream, fileName)
+    Note right of AzureBlobStorage: Azure Blob Storage service receives and stores the file.
     AzureBlobStorage -->>- BlobStorageRepository: string videoUrl (e.g., https://yourstorage.blob.core.windows.net/videos/fileName.mp4)
+    Note left of BlobStorageRepository: Returns the public URL of the uploaded video.
     BlobStorageRepository -->>- BlobVideoStorageService: string videoUrl
     BlobVideoStorageService -->>- VideoBlobStorageController: string videoUrl
     VideoBlobStorageController -->>- Frontend: 200 OK (videoUrl)
+    Note left of Frontend: Frontend receives the URL to link the video later.
 
     %% Phase 2: AI-Powered Tag Generation
     User->>+Frontend: Enters Video Name and Description
+    Note right of Frontend: User provides text input for video details.
     Frontend->>+TagsGenerationController: POST /api/tags/generate (string videoName, string videoDescription)
+    Note right of TagsGenerationController: API endpoint for initiating tag generation.
     TagsGenerationController ->> ITagsGenerationService: GenerateTags(string videoName, string videoDescription)
+    Note left of ITagsGenerationService: Interface for tag generation service.
     ITagsGenerationService ->>+ TagsGenerationService: GenerateTags(string videoName, string videoDescription)
+    Note right of TagsGenerationService: Orchestrates the call to the external AI tag generator.
     TagsGenerationService ->>+ TagsGeneratorAppController: POST /api/generate (TagGenerationRequestDto)
+    Note right of TagsGeneratorAppController: External API endpoint of the AI Tag Generator application.
     TagsGeneratorAppController ->>+ TagsGeneratorAppService: GenerateTags(TagGenerationRequestDto)
+    Note right of TagsGeneratorAppService: Performs AI processing (e.g., NLP) to generate tags.
     TagsGeneratorAppService -->>- TagsGeneratorAppController: List<string> suggestedTagNames
+    Note left of TagsGeneratorAppController: Returns raw suggested tags from AI.
     TagsGeneratorAppController -->>- TagsGenerationService: List<string> suggestedTagNames
     TagsGenerationService -->>- TagsGenerationController: List<string> suggestedTagNames
     TagsGenerationController -->>- Frontend: List<string> suggestedTagNames
+    Note left of Frontend: Displays the AI-suggested tags to the user.
     Frontend -->> User: Displays suggested Tags
 
     %% Phase 3: Category Search
     User->>+Frontend: Searches for a category (e.g., types in "education")
+    Note right of Frontend: User interacts with a search input field for categories.
     Frontend ->>+ CategoryController: GET /api/categories/search?query=<query>
+    Note right of CategoryController: API endpoint for category search.
     CategoryController ->> ICategoryService: SearchCategories(string query)
+    Note left of ICategoryService: Interface for category management logic.
     ICategoryService ->>+ CategoryService: SearchCategories(string query)
+    Note right of CategoryService: Business logic for searching categories.
     CategoryService ->> ICategoryRepository: SearchCategories(string query)
+    Note left of ICategoryRepository: Interface for database operations related to categories.
     ICategoryRepository ->>+ CategoryRepository: SearchCategories(string query)
+    Note right of CategoryRepository: Implements data access for categories using Entity Framework.
     CategoryRepository ->>+ ApplicationDbContext: Categories.Where(...).Include(...).ToListAsync() (for fuzzy and related search)
+    Note right of ApplicationDbContext: Entity Framework DbContext used to query categories.
     ApplicationDbContext ->>+ Database: SELECT * FROM Categories WHERE Name LIKE '%query%' OR Description LIKE '%query%' (or more complex fuzzy logic)
+    Note right of Database: Actual SQL query executed against the database.
     Database -->>- ApplicationDbContext: List<Category> entities
+    Note left of ApplicationDbContext: Database returns category records.
     ApplicationDbContext -->>- CategoryRepository: List<Category> entities
     CategoryRepository -->>- CategoryService: List<Category> entities
     CategoryService -->>- CategoryController: List<CategoryDto>
+    Note left of CategoryController: Maps Category entities to DTOs for frontend consumption.
     CategoryController -->>- Frontend: List<CategoryDto>
+    Note left of Frontend: Displays the search results to the user.
     Frontend -->> User: Displays Categories as search results
 
     %% Phase 4: User Selection of Tags & Category
     User->>+Frontend: Selects one or more Tags from the suggested list or adds custom tags
+    Note right of Frontend: User clicks on tags or types new ones.
     Frontend-->>User: Displays Tag(s) as selected (multiple can be chosen)
     User->>+Frontend: Selects a Category from the search results
+    Note right of Frontend: User clicks on a category from the displayed list.
     Frontend-->>User: Displays Category as selected (only one can be chosen)
 
     %% Phase 5: Metadata Submission & Persistence
     User->>+Frontend: Clicks "Submit" (finalizes metadata: name, description, videoUrl, selected tag IDs, selected category ID)
+    Note right of Frontend: Collects all final metadata fields.
     Frontend->>+VideoMetadataController: POST /api/video/metadata (VideoMetadataDto)
+    Note right of VideoMetadataController: API endpoint for saving video metadata.
     VideoMetadataController ->> IVideoMetadataService: AddVideoMetadata(VideoMetadataDto videoMetadataDto)
+    Note left of IVideoMetadataService: Interface for video metadata business logic.
     IVideoMetadataService ->>+ VideoMetadataService: AddVideoMetadata(VideoMetadataDto videoMetadataDto)
+    Note right of VideoMetadataService: Orchestrates validation and persistence of video metadata.
 
     VideoMetadataService ->> IVideoMetadataRepository: CheckUserExists(videoMetadataDto.userId)
+    Note left of IVideoMetadataRepository: Interface for video metadata database operations.
     IVideoMetadataRepository ->>+ VideoMetadataRepository: CheckUserExists(userId)
+    Note right of VideoMetadataRepository: Checks if the provided user ID is valid.
     VideoMetadataRepository ->>+ ApplicationDbContext: Users.AnyAsync(id)
+    Note right of ApplicationDbContext: Uses EF to check user existence asynchronously.
     ApplicationDbContext ->>+ Database: SELECT 1 FROM Users WHERE Id = @id
+    Note right of Database: SQL query for user existence check.
     Database -->>- ApplicationDbContext: Boolean (user exists)
     ApplicationDbContext -->>- VideoMetadataRepository: Boolean
     VideoMetadataRepository -->>- VideoMetadataService: Boolean userExists
     alt if userExists is false
         VideoMetadataService --x Frontend: Throws ArgumentException / Validation Error
+        Note left of VideoMetadataService: Aborts the operation and sends an error.
     end
 
     alt if videoMetadataDto.categoryId.HasValue
         VideoMetadataService ->> ICategoryRepository: CheckCategoryExists(videoMetadataDto.categoryId.Value)
+        Note left of ICategoryRepository: Reuses category repository to validate category ID.
         ICategoryRepository ->>+ CategoryRepository: CheckCategoryExists(categoryId)
         CategoryRepository ->>+ ApplicationDbContext: Categories.AnyAsync(id)
         ApplicationDbContext ->>+ Database: SELECT 1 FROM Categories WHERE Id = @id
+        Note right of Database: SQL query for category existence check.
         Database -->>- ApplicationDbContext: Boolean (category exists)
         ApplicationDbContext -->>- CategoryRepository: Boolean
         CategoryRepository -->>- VideoMetadataService: Boolean categoryExists
         alt if categoryExists is false
             VideoMetadataService --x Frontend: Throws ArgumentException / Validation Error
+            Note left of VideoMetadataService: Aborts the operation and sends an error.
         end
     end
 
     alt if videoMetadataDto.tagIds != null and videoMetadataDto.tagIds.Any()
         VideoMetadataService ->> IVideoMetadataRepository: GetExistingTags(videoMetadataDto.tagIds)
+        Note left of IVideoMetadataRepository: Retrieves tag entities to validate provided tag IDs.
         IVideoMetadataRepository ->>+ VideoMetadataRepository: GetExistingTags(tagIds)
         VideoMetadataRepository ->>+ ApplicationDbContext: Tags.Where(t => tagIds.Contains(t.Id)).ToListAsync()
         ApplicationDbContext ->>+ Database: SELECT * FROM Tags WHERE Id IN (...)
+        Note right of Database: SQL query to get existing tags.
         Database -->>- ApplicationDbContext: List<Tag> entitie
         ApplicationDbContext -->>- VideoMetadataRepository: List<Tag> entities
         VideoMetadataRepository -->>- VideoMetadataService: List<Tag> existingTags
         alt if existingTags.Count != videoMetadataDto.tagIds.Count()
             VideoMetadataService --x Frontend: Throws ArgumentException / Validation Error (invalid tag IDs)
+            Note left of VideoMetadataService: Aborts if any tag ID is invalid.
         end
     end
 
     VideoMetadataService ->> IVideoMetadataRepository: AddVideoMetadata(VideoMetadata entity) (after DTO-to-Entity mapping and relationship hydration)
+    Note left of IVideoMetadataRepository: Prepares the entity for persistence, including related tags and category.
     IVideoMetadataRepository ->>+ VideoMetadataRepository: AddVideoMetadata(VideoMetadata entity)
     VideoMetadataRepository ->>+ ApplicationDbContext: Add(VideoMetadata entity)
+    Note right of ApplicationDbContext: Entity is marked as 'Added' for EF change tracking.
     ApplicationDbContext ->>+ Database: INSERT INTO VideoMetadatas (videoName, videoDescription, videoUrl, userId, categoryId, ...) VALUES (...)
+    Note right of Database: Database performs the actual insert of video metadata.
     Database -->>- ApplicationDbContext: Generated videoId, success
+    Note left of ApplicationDbContext: Database returns the newly generated ID for the video.
     ApplicationDbContext ->>+ ApplicationDbContext: SaveChangesAsync()
+    Note right of ApplicationDbContext: Triggers database commit including change tracking and interceptors.
     ApplicationDbContext -->>+ IVideoMetadataLogsInterceptorService: LogVideoMetadataChanges(VideoMetadata)
+    Note left of IVideoMetadataLogsInterceptorService: An interceptor (e.g., using EF Core's SaveChangesInterceptor) captures changes.
     IVideoMetadataLogsInterceptorService -->>+ VideoMetadataLogsInterceptorService: LogVideoMetadataChanges(VideoMetadata)
+    Note right of VideoMetadataLogsInterceptorService: Implementation of the logging interceptor.
     VideoMetadataLogsInterceptorService ->>+ IVideoMetadataLogsRepository: LogVideoMetadataChanges(VideoMetadata)
-    IVideoMetadataLogsRepository ->>+ VideoMetadataLogsRepository: LogVideoMetadata(VideoMetadata_changelog) 
+    Note left of IVideoMetadataLogsRepository: Interface for storing audit logs.
+    IVideoMetadataLogsRepository ->>+ VideoMetadataLogsRepository: LogVideoMetadata(VideoMetadata_changelog)
+    Note right of VideoMetadataLogsRepository: Maps changed metadata to an audit log entity.
     VideoMetadataLogsRepository ->>+ ApplicationDbContext: Store VideoMetadataLog
+    Note right of ApplicationDbContext: Adds the audit log entry to the DbContext.
     ApplicationDbContext ->>+ Database: Store VideoMetadata_changelog
+    Note right of Database: Inserts the audit log record into the database.
     ApplicationDbContext ->>+ Database: EXECUTE sp_executesql ... (Commit transaction)
+    Note right of Database: Database commits the primary video metadata transaction.
     Database -->>- ApplicationDbContext: Transaction success
     ApplicationDbContext ->>+ Database: EXECUTE sp_executesql ... (Commit transaction)
+    Note right of Database: Database commits the audit log transaction.
     Database -->>- ApplicationDbContext: Transaction success
     ApplicationDbContext -->>- VideoMetadataRepository: VideoMetadata entity (with generated ID)
+    Note left of VideoMetadataRepository: Returns the persisted video metadata entity.
     VideoMetadataRepository -->>- VideoMetadataService: VideoMetadata entity (with generated ID)
 
     %% Phase 6: Asynchronous Indexing (via Message Queue)
     VideoMetadataService ->> IVideoMetadataProducerService: PublishVideoMetadataForIndexing(VideoMetadata entity)
+    Note left of IVideoMetadataProducerService: Interface for publishing video metadata events.
     IVideoMetadataProducerService ->>+ VideoMetadataProducerService: PublishVideoMetadataForIndexing(VideoMetadata entity)
+    Note right of VideoMetadataProducerService: Transforms the entity into a message for the queue.
     VideoMetadataProducerService ->> IMessageProducerService: Produce(IDataSyncMessage message, string routingKey, string exchangeName)
+    Note left of IMessageProducerService: Generic interface for producing messages to a message broker.
     IMessageProducerService ->>+ MessageProducerService: Produce(IDataSyncMessage message, string routingKey, string exchangeName)
+    Note right of MessageProducerService: Handles the concrete RabbitMQ message publishing logic.
     MessageProducerService ->>+ RabbitMqExchange: Publish(IDataSyncMessage message, routingKey)
+    Note right of RabbitMqExchange: Message is published to a specific exchange.
     RabbitMqExchange -->> RabbitMqQueue: Route IDataSyncMessage to queue
+    Note right of RabbitMqQueue: Exchange routes the message based on routing key to the designated queue.
     RabbitMqQueue -->>+ IVideoMetadataConsumer: Consume(IDataSyncMessage message) (e.g., via background service)
+    Note left of IVideoMetadataConsumer: A background service (e.g., hosted service in .NET) listening to the queue.
     IVideoMetadataConsumer ->>+ VideoMetadataConsumer: Consume(IDataSyncMessage message)
+    Note right of VideoMetadataConsumer: Dequeues the message and initiates indexing.
     VideoMetadataConsumer ->> IIndexVideoMetadataService: IndexVideoMetadata(VideoMetadataDtoForIndexing) (transformed from IDataSyncMessage)
+    Note left of IIndexVideoMetadataService: Interface for indexing video metadata in Elasticsearch.
     IIndexVideoMetadataService ->>+ IndexVideoMetadataService: IndexVideoMetadata(VideoMetadataDtoForIndexing)
+    Note right of IndexVideoMetadataService: Business logic for preparing data for Elasticsearch.
     IndexVideoMetadataService ->> IIndexVideoMetadataRepository: IndexVideoMetadata(VideoMetadataDtoForIndexing)
+    Note left of IIndexVideoMetadataRepository: Interface for Elasticsearch repository operations.
     IIndexVideoMetadataRepository ->>+ IndexVideoMetadataRepository: IndexVideoMetadata(VideoMetadataDtoForIndexing)
+    Note right of IndexVideoMetadataRepository: Handles the concrete interaction with Elasticsearch client.
     IndexVideoMetadataRepository ->>+ ElasticSearch: Index Document (VideoMetadataDtoForIndexing content)
+    Note right of ElasticSearch: Elasticsearch indexes the document, making it searchable.
     ElasticSearch -->>- IndexVideoMetadataRepository: Indexing success/acknowledgement
+    Note left of IndexVideoMetadataRepository: Elasticsearch confirms successful indexing.
     IndexVideoMetadataRepository -->>- IndexVideoMetadataService: Success
     IndexVideoMetadataService -->>- VideoMetadataConsumer: Success
     VideoMetadataConsumer -->>+ RabbitMqQueue: acknowledgement
+    Note right of RabbitMqQueue: Consumer acknowledges successful processing to RabbitMQ.
     RabbitMqQueue -->>+ RabbitMqQueue: deQueue videoMetadata
+    Note right of RabbitMqQueue: Message is removed from the queue.
 
     %% Phase 7: Final Response
     VideoMetadataService -->>- VideoMetadataController: VideoMetadataDto (with generated ID)
+    Note left of VideoMetadataController: Maps the persisted entity back to a DTO for the frontend.
     VideoMetadataController -->>- Frontend: 201 Created (Location: /api/video/metadata/{id}, Body: VideoMetadataDto)
+    Note left of Frontend: Sends HTTP 201 with the location of the new resource.
     Frontend -->> User: "Video Saved Successfully!" message and/or redirect to video page
+    Note right of User: User sees confirmation or is navigated to the video's detail page.
