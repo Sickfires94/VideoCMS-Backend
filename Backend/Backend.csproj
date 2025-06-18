@@ -9,13 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Diagrams\Sequence Diagrams\Logger.txt" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="AutoMapper" Version="14.0.0" />
     <PackageReference Include="Azure.Identity" Version="1.14.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.24.1" />
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Elastic.Clients.Elasticsearch" Version="9.0.6" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.17" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2" />
@@ -34,10 +31,6 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1-Preview.1" />
     <PackageReference Include="RabbitMQ.Client" Version="7.1.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Repositories\Interface\" />
   </ItemGroup>
 
 </Project>

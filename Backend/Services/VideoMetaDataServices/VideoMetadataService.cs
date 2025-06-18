@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using Backend.DTOs;
+﻿using Backend.DTOs;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services.RabbitMq;
 using Backend.Services.VideoMetaDataServices.Interfaces;
@@ -13,7 +12,7 @@ namespace Backend.Services.VideoMetaDataServices
         private readonly IVideoMetaDataProducerService _producerService;
 
 
-        public VideoMetadataService(IVideoMetadataRepository videoMetadataRepository, IVideoMetaDataProducerService videoMetadataProducerService, IMapper mapper)
+        public VideoMetadataService(IVideoMetadataRepository videoMetadataRepository, IVideoMetaDataProducerService videoMetadataProducerService)
         {
             _videoMetadataRepository = videoMetadataRepository;
             _producerService = videoMetadataProducerService;

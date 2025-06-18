@@ -1,27 +1,35 @@
 ﻿using Azure.Storage.Blobs;
 using Backend.Configurations.DataConfigs;
+using Backend.Repositories;
+using Backend.Repositories.Interface; // Assuming ITagRepository is here, from previous context
 using Backend.Repositories.VideoMetadataRepositories;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services;
-using Backend.Services.Interfaces;
+using Backend.Services.Interface;
+using Backend.Services.Interfaces; // For IBlobStorageService, etc.
 using Backend.Services.RabbitMq;
 using Backend.Services.RabbitMq.Interfaces;
 using Backend.Services.VideoMetaDataServices;
 using Backend.Services.VideoMetaDataServices.Interfaces;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using RabbitMQ.Client;
 using System.Diagnostics;
+using System.Text;
 
 namespace Backend.Configurations
 {
     public static class ServiceCollectionExtensions
     {
+        /// <summary>
+        /// Adds database context configuration and SQL Server options.
+        /// </summary>
         public static IServiceCollection AddDatabaseConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDbContext<VideoManagementApplicationContext>(options =>
@@ -37,6 +45,40 @@ namespace Backend.Configurations
             return services;
         }
 
+        /// <summary>
+        /// Adds services and repositories related to User management.
+        /// </summary>
+        public static IServiceCollection AddUserModule(this IServiceCollection services)
+        {
+            services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IUserService, UserService>();
+            return services;
+        }
+
+        /// <summary>
+        /// Adds services and repositories related to Tag management.
+        /// </summary>
+        public static IServiceCollection AddTagModule(this IServiceCollection services)
+        {
+            services.AddScoped<ITagRepository, TagRepository>();
+            services.AddScoped<ITagService, TagService>();
+            return services;
+        }
+
+        /// <summary>
+        /// Adds services and repositories related to Category management.
+        /// </summary>
+        public static IServiceCollection AddCategoryModule(this IServiceCollection services)
+        {
+            services.AddScoped<ICategoryRepository, CategoryRepository>();
+            services.AddScoped<ICategoryService, CategoryService>();
+            return services;
+        }
+
+        /// <summary>
+        /// Configures CORS policy.
+        /// </summary>
+        /// <param name="policyName">The name of the CORS policy.</param>
         public static IServiceCollection AddCorsConfiguration(this IServiceCollection services, string policyName)
         {
             services.AddCors(options =>
@@ -52,6 +94,9 @@ namespace Backend.Configurations
             return services;
         }
 
+        /// <summary>
+        /// Configures RabbitMQ connection and generic producer.
+        /// </summary>
         public static IServiceCollection AddRabbitMqConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<RabbitMqConfig>(configuration.GetSection("backend:RabbitMq"));
@@ -62,77 +107,21 @@ namespace Backend.Configurations
                 factory.AutomaticRecoveryEnabled = true;
                 factory.TopologyRecoveryEnabled = true;
 
-
                 var config = sp.GetRequiredService<IOptions<RabbitMqConfig>>().Value;
+                // Note: CreateConnectionAsync().GetAwaiter().GetResult() is blocking.
+                // For a more robust async setup, consider an IHostedService that manages the connection.
                 return new RabbitMqConnection(factory.CreateConnectionAsync().GetAwaiter().GetResult());
             });
 
+            // Registering generic message producer
             services.AddScoped<IMessageProducer, RabbitMqProducerService>();
 
             return services;
         }
 
-        public static IServiceCollection InitializeRabbitMqTopology(this IServiceCollection services, IConfiguration configuration)
-        {
-            services.Configure<VideoMetadataIndexingOptions>(configuration.GetSection("VideoMetadataIndexingOptions"));
-            services.AddHostedService<RabbitMqTopologyInitializer>();
-            return services;
-        }
-
-        public static IServiceCollection AddIndexVideoMetadataConsumerService(this IServiceCollection services, IConfiguration configuration)
-        {
-            services.Configure<VideoMetadataIndexingOptions>(configuration.GetSection("VideoMetadataIndexingOptions"));
-            services.AddHostedService<IndexVideoMetadataConsumerService>(sp =>
-            {
-
-                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-                var settings = sp.GetRequiredService<IOptions<VideoMetadataIndexingOptions>>();
-                var connection = sp.GetRequiredService<IRabbitMqConnection>();
-
-                return new IndexVideoMetadataConsumerService(connection, scopeFactory, settings);
-
-            });
-            return services;
-        }
-
-
-        public static IServiceCollection AddVideoMetadataRepository(this IServiceCollection services)
-        {
-            services.AddScoped<IVideoMetadataRepository, VideoMetadataRepository>();
-            return services;
-        }
-
-        public static IServiceCollection AddGenericProducer(this IServiceCollection services)
-        {
-            services.AddScoped<IMessageProducer, RabbitMqProducerService>();
-            return services;
-        }
-
-        public static IServiceCollection AddVideoMetadataService(this IServiceCollection services)
-        {
-            services.AddScoped<IVideoMetadataService, VideoMetadataService>();
-            return services;
-        }
-
-        public static IServiceCollection AddVideoMetadataProducerService(this IServiceCollection services, IConfiguration configuration)
-        {
-            services.Configure<VideoMetadataIndexingOptions>(configuration.GetSection("VideoMetadataIndexingOptions"));
-
-            services.AddSingleton<IVideoMetaDataProducerService>(provider =>
-            {
-                var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-                var logger = provider.GetRequiredService<ILogger<VideoMetadataProducerService>>();
-                var settings = provider.GetRequiredService<IOptions<VideoMetadataIndexingOptions>>();
-
-                return new VideoMetadataProducerService(
-                    scopeFactory,
-                    settings
-                );
-            });
-
-            return services;
-        }
-
+        /// <summary>
+        /// Adds configuration for Azure Blob Storage and its service.
+        /// </summary>
         public static IServiceCollection AddAzureBlobStorageConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<AzureStorageConfig>(configuration.GetSection("backend:AzureStorage"));
@@ -156,18 +145,10 @@ namespace Backend.Configurations
             return services;
         }
 
-        public static IServiceCollection AddIndexVideoMetadataService(this IServiceCollection services)
-        {
-            services.AddScoped<IIndexVideoMetadataService, IndexVideoMetadataService>();
-            return services;
-        }
-
-        public static IServiceCollection AddIndexVideoMetadataRepository(this IServiceCollection services)
-        {
-            services.AddScoped<IIndexVideoMetadataRepository, IndexVideoMetadataRepository>();
-            return services;
-        }
-
+        /// <summary>
+        /// Adds configuration for Elasticsearch client.
+        /// WARNING: The ServerCertificateValidationCallback bypasses certificate validation. Do NOT use in production.
+        /// </summary>
         public static IServiceCollection AddElasticsearchConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<ElasticSearchCredentials>(configuration.GetSection("backend:ElasticSearch"));
@@ -190,33 +171,56 @@ namespace Backend.Configurations
             return services;
         }
 
-
-        public static IServiceCollection AddVideoMetadataSearchService(this IServiceCollection services)
+        /// <summary>
+        /// Adds all services, repositories, and hosted services related to video metadata processing and search.
+        /// This includes:
+        /// - VideoMetadataRepository, IndexVideoMetadataRepository, VideoMetadataSearchingRepository
+        /// - VideoMetadataService, IndexVideoMetadataService, VideoMetadataSearchService
+        /// - VideoMetadataProducerService (for sending messages about video metadata)
+        /// - IndexVideoMetadataConsumerService (for consuming messages to index video metadata)
+        /// - RabbitMqTopologyInitializer (for setting up RabbitMQ topology specific to video metadata indexing)
+        /// </summary>
+        public static IServiceCollection AddVideoMetadataModule(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddScoped<IVideoMetadataSearchService, VideoMetadataSearchService>();
-            return services;
-        }
+            // Configure options for video metadata indexing
+            services.Configure<VideoMetadataIndexingOptions>(configuration.GetSection("VideoMetadataIndexingOptions"));
 
-
-        public static IServiceCollection AddVideoMetadataSearchRepository(this IServiceCollection services)
-        {
+            // Repositories
+            services.AddScoped<IVideoMetadataRepository, VideoMetadataRepository>();
+            services.AddScoped<IIndexVideoMetadataRepository, IndexVideoMetadataRepository>();
             services.AddScoped<IVideoMetadataSearchingRepository, VideoMetadataSearchingRepository>();
+
+            // Services
+            services.AddScoped<IVideoMetadataService, VideoMetadataService>();
+            services.AddScoped<IIndexVideoMetadataService, IndexVideoMetadataService>();
+            services.AddScoped<IVideoMetadataSearchService, VideoMetadataSearchService>();
+
+            // Video metadata producer service
+            services.AddSingleton<IVideoMetaDataProducerService>(provider =>
+            {
+                var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+                var settings = provider.GetRequiredService<IOptions<VideoMetadataIndexingOptions>>();
+                return new VideoMetadataProducerService(scopeFactory, settings);
+            });
+
+            // Consumer service for indexing video metadata
+            services.AddHostedService<IndexVideoMetadataConsumerService>(sp =>
+            {
+                var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+                var settings = sp.GetRequiredService<IOptions<VideoMetadataIndexingOptions>>();
+                var connection = sp.GetRequiredService<IRabbitMqConnection>();
+                return new IndexVideoMetadataConsumerService(connection, scopeFactory, settings);
+            });
+
+            // Hosted service for initializing RabbitMQ topology specific to video metadata
+            services.AddHostedService<RabbitMqTopologyInitializer>();
+
             return services;
         }
 
-        public static IServiceCollection AddApplicationServices(this IServiceCollection services)
-        {
-            services.AddScoped<UserService>();
-            return services;
-        }
-
-        public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
-        {
-            services.AddHealthChecks()
-                .AddDbContextCheck<VideoManagementApplicationContext>(name: "SQL Database Check");
-            return services;
-        }
-
+        /// <summary>
+        /// Adds core API services like controllers, API explorer, and Swagger generation.
+        /// </summary>
         public static IServiceCollection AddApiCoreServices(this IServiceCollection services)
         {
             services.AddControllers();
@@ -225,9 +229,63 @@ namespace Backend.Configurations
             return services;
         }
 
-        public static IServiceCollection AddAuthenticationConfiguration(this IServiceCollection services)
+        /// <summary>
+        /// Configures JWT Bearer authentication and registers the TokenService.
+        /// </summary>
+        public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddAuthentication("Bearer").AddJwtBearer();
+            // Bind JWT settings from appsettings.json
+            services.Configure<JwtConfig>(configuration.GetSection("backend:Jwt"));
+
+            // Register the Token Service
+            services.AddScoped<ITokenService, TokenService>();
+
+            // Configure JWT Bearer Authentication
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                var jwtConfig = configuration.GetSection("backend:Jwt").Get<JwtConfig>();
+                if (jwtConfig == null)
+                {
+                    throw new InvalidOperationException("JWT configuration not found in appsettings.json.");
+                }
+
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.key))
+                };
+            });
+
+            return services;
+        }
+
+        public static IServiceCollection AddAuthorizationConfiguration(this IServiceCollection services)
+        {
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+                options.AddPolicy("UserOnly", policy => policy.RequireRole("User"));
+            });
+            return services;
+        }
+
+      
+
+        /// <summary>
+        /// Adds health check services.
+        /// </summary>
+        public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
+        {
+            services.AddHealthChecks()
+                .AddDbContextCheck<VideoManagementApplicationContext>(name: "SQL Database Check");
             return services;
         }
     }

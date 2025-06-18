@@ -26,7 +26,7 @@
     VM -- Updates --> Models 
     VM -- Renders --> Views
     Models -- Requests data --> Controllers
-    Models -- Uploads Video --> blob
+    Models -- Uploads Video Chunks --> blob
 
   end
   

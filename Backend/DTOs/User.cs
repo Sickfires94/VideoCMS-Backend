@@ -6,8 +6,7 @@ namespace Backend.DTOs
     {
         public int userId {  get; set; }
 
-        [Required]
-        public string userName { get; set; }
+        public string? userName { get; set; }
 
         [Required]
         public string userPassword { get; set; }

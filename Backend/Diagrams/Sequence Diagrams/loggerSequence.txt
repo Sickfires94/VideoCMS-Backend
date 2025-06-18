@@ -1,4 +1,4 @@
-﻿sequenceDiagram
+sequenceDiagram
     participant App as Application (.NET)
     participant Serilog as Serilog Logger
     participant RMQ_Sink as Serilog RabbitMQ Sink
