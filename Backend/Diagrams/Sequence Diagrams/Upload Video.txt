@@ -122,7 +122,7 @@ sequenceDiagram
         IVideoMetadataRepository ->>+ VideoMetadataRepository: GetExistingTags(tagIds)
         VideoMetadataRepository ->>+ ApplicationDbContext: Tags.Where(t => tagIds.Contains(t.Id)).ToListAsync()
         ApplicationDbContext ->>+ Database: SELECT * FROM Tags WHERE Id IN (...)
-        Database -->>- ApplicationDbContext: List<Tag> entities
+        Database -->>- ApplicationDbContext: List<Tag> entitie
         ApplicationDbContext -->>- VideoMetadataRepository: List<Tag> entities
         VideoMetadataRepository -->>- VideoMetadataService: List<Tag> existingTags
         alt if existingTags.Count != videoMetadataDto.tagIds.Count()
@@ -136,6 +136,14 @@ sequenceDiagram
     ApplicationDbContext ->>+ Database: INSERT INTO VideoMetadatas (videoName, videoDescription, videoUrl, userId, categoryId, ...) VALUES (...)
     Database -->>- ApplicationDbContext: Generated videoId, success
     ApplicationDbContext ->>+ ApplicationDbContext: SaveChangesAsync()
+    ApplicationDbContext -->>+ IVideoMetadataLogsInterceptorService: LogVideoMetadataChanges(VideoMetadata)
+    IVideoMetadataLogsInterceptorService -->>+ VideoMetadataLogsInterceptorService: LogVideoMetadataChanges(VideoMetadata)
+    VideoMetadataLogsInterceptorService ->>+ IVideoMetadataLogsRepository: LogVideoMetadataChanges(VideoMetadata)
+    IVideoMetadataLogsRepository ->>+ VideoMetadataLogsRepository: LogVideoMetadata(VideoMetadata_changelog) 
+    VideoMetadataLogsRepository ->>+ ApplicationDbContext: Store VideoMetadataLog
+    ApplicationDbContext ->>+ Database: Store VideoMetadata_changelog
+    ApplicationDbContext ->>+ Database: EXECUTE sp_executesql ... (Commit transaction)
+    Database -->>- ApplicationDbContext: Transaction success
     ApplicationDbContext ->>+ Database: EXECUTE sp_executesql ... (Commit transaction)
     Database -->>- ApplicationDbContext: Transaction success
     ApplicationDbContext -->>- VideoMetadataRepository: VideoMetadata entity (with generated ID)
@@ -158,6 +166,8 @@ sequenceDiagram
     ElasticSearch -->>- IndexVideoMetadataRepository: Indexing success/acknowledgement
     IndexVideoMetadataRepository -->>- IndexVideoMetadataService: Success
     IndexVideoMetadataService -->>- VideoMetadataConsumer: Success
+    VideoMetadataConsumer -->>+ RabbitMqQueue: acknowledgement
+    RabbitMqQueue -->>+ RabbitMqQueue: deQueue videoMetadata
 
     %% Phase 7: Final Response
     VideoMetadataService -->>- VideoMetadataController: VideoMetadataDto (with generated ID)

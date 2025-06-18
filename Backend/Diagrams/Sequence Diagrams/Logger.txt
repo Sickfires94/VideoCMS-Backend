@@ -1,0 +1,36 @@
+﻿sequenceDiagram
+    participant App as Application (.NET)
+    participant Serilog as Serilog Logger
+    participant RMQ_Sink as Serilog RabbitMQ Sink
+    participant RabbitMQ as RabbitMQ Broker
+    participant LogShipper as Log Shipper (e.g., Logstash/Custom Service)
+    participant Elasticsearch as Elasticsearch Cluster
+
+    App->>Serilog: Configure Logger(with RabbitMQ Sink)
+    App->> Serilog: LogEvent(message, properties...)
+    activate Serilog
+    Serilog->>RMQ_Sink: Pass LogEvent to Sink
+    activate RMQ_Sink
+    RMQ_Sink->>RabbitMQ: Publish LogEvent(as JSON message)
+    activate RabbitMQ
+    RabbitMQ-->>RMQ_Sink: Acknowledge Message Receipt
+    deactivate RabbitMQ
+    RMQ_Sink-->>Serilog: Confirm(internally handled)
+    deactivate RMQ_Sink
+    Serilog-->>App: (Continues execution)
+    deactivate Serilog
+
+    Note over RabbitMQ, LogShipper: RabbitMQ acts as a buffer and queue.
+
+    LogShipper->>RabbitMQ: Subscribe to Log Queue
+    activate LogShipper
+    RabbitMQ->>LogShipper: Deliver LogEvent Message
+    LogShipper->>LogShipper: (Parse, Transform, Enrich LogEvent)
+    LogShipper->>Elasticsearch: Bulk Index LogEvent (HTTP/S POST)
+    activate Elasticsearch
+    Elasticsearch-->>LogShipper: Acknowledge Indexing
+    deactivate Elasticsearch
+    LogShipper-->>RabbitMQ: Acknowledge Message Processed
+    deactivate LogShipper
+
+    Note right of Elasticsearch: Kibana(or other tools) queries Elasticsearch for visualization and analysis.
