@@ -80,8 +80,6 @@ namespace Backend.Controllers
                 return Unauthorized("Invalid email or password."); // 401 Unauthorized
             }
 
-            // In a real application, you would generate and return a JWT token here.
-            // For now, we'll just return the user details (excluding password).
             return Ok(new { Message = "Login successful!", User = new { authenticatedUser.userId, authenticatedUser.userName, authenticatedUser.userEmail, authenticatedUser.Token } });
         }
 

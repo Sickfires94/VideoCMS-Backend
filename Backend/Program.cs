@@ -22,7 +22,9 @@ builder.Services
     .AddCorsConfiguration(allowAllOrigins)
     .AddRabbitMqConfiguration(builder.Configuration) // Includes generic IMessageProducer
     .AddAzureBlobStorageConfiguration(builder.Configuration)
-    .AddElasticsearchConfiguration(builder.Configuration);
+    .AddElasticsearchConfiguration(builder.Configuration)
+    .AddTagGenerationService(builder.Configuration);
+   
 
 // Domain/Feature Modules (contain repositories and services specific to a domain)
 builder.Services

@@ -44,6 +44,15 @@ public class CategoriesController : ControllerBase
         return Ok(category);
     }
 
+    [HttpGet("{categoryName}")]
+    public async Task<IActionResult> GetCategoryByName(string categoryName)
+    {
+        var category = await _categoryService.GetCategoryByNameAsync(categoryName);
+        if (category == null) return NotFound();
+
+        return Ok(category);
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAllCategories()
     {
@@ -148,5 +157,12 @@ public class CategoriesController : ControllerBase
         var hierarchy = await _categoryService.GetCategoryHierarchyAsync(categoryId);
         // The hierarchy will be from root to the specified category.
         return Ok(hierarchy);
+    }
+
+    [HttpGet("search/{categoryName}")]
+    public async Task<IActionResult> SearchCategoriesByName(string categoryName)
+    {
+        var categories = await _categoryService.SearchCategoriesByName(categoryName);
+        return Ok(categories);
     }
 }

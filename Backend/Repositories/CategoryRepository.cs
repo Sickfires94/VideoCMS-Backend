@@ -99,6 +99,38 @@ namespace Backend.Repositories
                                  .FirstOrDefaultAsync(c => c.categoryName.ToLower() == name.ToLower());
         }
 
+        public async Task<List<Category>?> GetCategoryListByNameAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return new List<Category>(); // Return empty list if no search term provided
+            }
+
+            // Convert the search term to lowercase once for case-insensitive comparison
+            var normalizedName = name.ToLower();
+
+            // Query categories:
+            // 1. AsNoTracking(): Improves performance for read-only operations.
+            // 2. Where(c => c.categoryName.ToLower().Contains(normalizedName)):
+            //    Performs a fuzzy (substring) search that is case-insensitive.
+            //    This translates to a SQL LIKE '%value%' operation.
+            // 3. Take(10): Limits the number of results to the first 10 matches found.
+            // 4. Select(): Projects the database entity (Category) to your DTO (CategoryDto).
+            //    Ensure properties like Id and CategoryName match your actual entity and DTO.
+            // 5. ToListAsync(): Executes the query asynchronously and returns the results as a List.
+            return await _context.categories
+                                 .AsNoTracking()
+                                 .Where(c => c.categoryName.ToLower().Contains(normalizedName))
+                                 .Take(10)
+                                 .Select(c => new Category
+                                 {
+                                     categoryId = c.categoryId, // Replace 'c.Id' with your actual primary key property name (e.g., c.CategoryId)
+                                     categoryName = c.categoryName
+                                     // Map other properties from Category entity to CategoryDto if needed
+                                 })
+                                 .ToListAsync();
+        }
+
         public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();

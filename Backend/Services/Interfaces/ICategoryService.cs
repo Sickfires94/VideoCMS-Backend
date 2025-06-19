@@ -18,6 +18,9 @@ namespace Backend.Services.Interfaces
         /// <returns>The Category DTO if found, otherwise null.</returns>
         Task<Category?> GetCategoryByIdAsync(int categoryId);
 
+        Task<Category?> GetCategoryByNameAsync(string categoryName);
+        Task<List<Category?>> SearchCategoriesByName(string categoryName);
+
         /// <summary>
         /// Retrieves all categories.
         /// </summary>

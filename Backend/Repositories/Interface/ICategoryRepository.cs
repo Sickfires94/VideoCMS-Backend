@@ -8,6 +8,7 @@ namespace Backend.Repositories.Interface
         Task DeleteAsync(int categoryId);
         Task<Category> GetByIdAsync(int id);
         Task<Category> GetByNameAsync(string name);
+        Task<List<Category>> GetCategoryListByNameAsync(string name);
         Task<IEnumerable<Category>> GetAllAsync();
         Task<IEnumerable<Category>> GetAllImmediateChildrenAsync(int categoryId);
         Task<IEnumerable<Category>> GetAllChildrenAsync(int categoryId);

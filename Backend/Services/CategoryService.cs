@@ -187,27 +187,23 @@ namespace Backend.Services
         public async Task<bool> IsCategoryNameUniqueAsync(string categoryName, int? parentId, int? excludeCategoryId = null)
         {
             // Get all categories that match the name (case-insensitive)
-            var existingCategoriesWithName = (await _categoryRepository.GetAllAsync())
-                                            .Where(c => c.categoryName.Equals(categoryName, StringComparison.OrdinalIgnoreCase));
+            var category = (await _categoryRepository.GetByNameAsync(categoryName));
 
-            // Filter by parentId
-            if (parentId.HasValue)
-            {
-                existingCategoriesWithName = existingCategoriesWithName.Where(c => c.categoryParentId == parentId.Value);
-            }
-            else // Checking for root category uniqueness
-            {
-                existingCategoriesWithName = existingCategoriesWithName.Where(c => !c.categoryParentId.HasValue);
-            }
-
-            // Exclude the category being updated if excludeCategoryId is provided
-            if (excludeCategoryId.HasValue)
-            {
-                existingCategoriesWithName = existingCategoriesWithName.Where(c => c.categoryId != excludeCategoryId.Value);
-            }
-
-            // If no categories match after all filters, the name is unique
-            return !existingCategoriesWithName.Any();
+            return category == null;
         }
+
+        public async Task<Category?> GetCategoryByNameAsync(string categoryName)
+        {
+            var category = await _categoryRepository.GetByNameAsync(categoryName);
+            return category;
+
+        }
+
+        public async Task<List<Category>?> SearchCategoriesByName(string categoryName)
+        {
+            var categories = await _categoryRepository.GetCategoryListByNameAsync(categoryName);
+            return categories;
+        }
+
     }
 }

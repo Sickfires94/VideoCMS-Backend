@@ -21,6 +21,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using RabbitMQ.Client;
 using System.Diagnostics;
+using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Backend.Configurations
@@ -277,7 +279,42 @@ namespace Backend.Configurations
             return services;
         }
 
-      
+      public static IServiceCollection AddTagGenerationService(this IServiceCollection services, IConfiguration configuration)
+        {
+
+            var tagsGenerationSection = configuration.GetSection("backend: TagsGenerationConfig");
+            var tagsApiUrl = tagsGenerationSection["ApiUrl"];
+
+            Debug.WriteLine($"[DEBUG] TagsGeneration:ApiUrl from configuration: {tagsApiUrl ?? "NULL or NOT FOUND"}");
+
+
+            services.Configure<TagsGenerationConfig>(configuration.GetSection("backend:TagsGenerationConfig"));
+
+            services.AddHttpClient<IGenerateTagsService, GenerateTagsService>((serviceProvider, client) =>
+            {
+                // If your TagsGenerationConfig.ApiUrl is the FULL URL (e.g., "https://api.example.com/generate"),
+                // then HttpClient's BaseAddress should generally NOT be set here,
+                // as the service will use the full URL in its GetAsync call.
+                // If TagsGenerationConfig.ApiUrl is just the base (e.g., "https://api.example.com/"),
+                // then uncomment the client.BaseAddress = baseUri; part.
+
+                client.DefaultRequestHeaders.Accept.Clear();
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                client.Timeout = TimeSpan.FromSeconds(20);
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => {
+                // Optional: If you need to ignore SSL errors for development/testing,
+                // DO NOT USE IN PRODUCTION
+                return new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                };
+            });
+
+
+            return services;
+        
+        }
 
         /// <summary>
         /// Adds health check services.

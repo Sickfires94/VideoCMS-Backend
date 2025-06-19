@@ -1,5 +1,7 @@
 ﻿using Backend.DTOs;
 using Backend.Services.Interface;
+using Backend.Services.Interfaces;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -9,10 +11,12 @@ using System.Threading.Tasks;
 public class TagsController : ControllerBase
 {
     private readonly ITagService _tagService;
+    private readonly IGenerateTagsService _generateTagsService;
 
-    public TagsController(ITagService tagService)
+    public TagsController(ITagService tagService, IGenerateTagsService generateTagsService)
     {
         _tagService = tagService;
+        _generateTagsService = generateTagsService;
     }
 
     [HttpPost]
@@ -99,5 +103,12 @@ public class TagsController : ControllerBase
             return NotFound("Tag not found."); // Currently, the service only returns false if not found.
         }
         return NoContent(); // Successfully deleted
+    }
+
+    [HttpGet("generate")]
+    public async Task<IActionResult> GenerateTags(string title, string description)
+    {
+        var tags = await _generateTagsService.GenerateTags(title, description);
+        return Ok(tags);
     }
 }
