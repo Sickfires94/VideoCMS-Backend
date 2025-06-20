@@ -9,12 +9,12 @@ namespace Backend.Services.RabbitMq
     {
         private readonly IRabbitMqConnection _connection;
         private readonly ILogger<RabbitMqTopologyInitializer> _logger;
-        private readonly VideoMetadataIndexingOptions _videoMetadataSettings;
+        private readonly VideoMetadataIndexingQueueOptions _videoMetadataSettings;
 
         public RabbitMqTopologyInitializer(
             IRabbitMqConnection connection,
             ILogger<RabbitMqTopologyInitializer> logger,
-            IOptions<VideoMetadataIndexingOptions> videoMetadataOptions)
+            IOptions<VideoMetadataIndexingQueueOptions> videoMetadataOptions)
         {
             _connection = connection;
             _logger = logger;

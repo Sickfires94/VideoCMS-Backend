@@ -185,6 +185,7 @@ namespace Backend.Configurations
         public static IServiceCollection AddVideoMetadataModule(this IServiceCollection services, IConfiguration configuration)
         {
             // Configure options for video metadata indexing
+            services.Configure<VideoMetadataIndexingQueueOptions>(configuration.GetSection("VideoMetadataIndexingQueueOptions"));
             services.Configure<VideoMetadataIndexingOptions>(configuration.GetSection("VideoMetadataIndexingOptions"));
 
             // Repositories
@@ -196,12 +197,13 @@ namespace Backend.Configurations
             services.AddScoped<IVideoMetadataService, VideoMetadataService>();
             services.AddScoped<IIndexVideoMetadataService, IndexVideoMetadataService>();
             services.AddScoped<IVideoMetadataSearchService, VideoMetadataSearchService>();
+            services.AddScoped<IVideoMetadataToIndexDtoParser, VideoMetadataToIndexDtoParser>();
 
             // Video metadata producer service
             services.AddSingleton<IVideoMetaDataProducerService>(provider =>
             {
                 var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-                var settings = provider.GetRequiredService<IOptions<VideoMetadataIndexingOptions>>();
+                var settings = provider.GetRequiredService<IOptions<VideoMetadataIndexingQueueOptions>>();
                 return new VideoMetadataProducerService(scopeFactory, settings);
             });
 
@@ -209,7 +211,7 @@ namespace Backend.Configurations
             services.AddHostedService<IndexVideoMetadataConsumerService>(sp =>
             {
                 var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
-                var settings = sp.GetRequiredService<IOptions<VideoMetadataIndexingOptions>>();
+                var settings = sp.GetRequiredService<IOptions<VideoMetadataIndexingQueueOptions>>();
                 var connection = sp.GetRequiredService<IRabbitMqConnection>();
                 return new IndexVideoMetadataConsumerService(connection, scopeFactory, settings);
             });

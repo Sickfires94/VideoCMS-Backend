@@ -1,6 +1,9 @@
-﻿using Backend.DTOs;
+﻿using Backend.Configurations.DataConfigs;
+using Backend.DTOs;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Elastic.Clients.Elasticsearch;
+using Elastic.Clients.Elasticsearch.Mapping;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
 
 namespace Backend.Repositories.VideoMetadataRepositories
@@ -9,41 +12,64 @@ namespace Backend.Repositories.VideoMetadataRepositories
     {
 
         private readonly ElasticsearchClient _client;
-        private const string IndexName = "videometadata"; // Define your Elasticsearch index name
+        private readonly VideoMetadataIndexingOptions _videoMetadataIndexingOptions; // Define your Elasticsearch index name
 
-        public IndexVideoMetadataRepository(ElasticsearchClient client)
+        public IndexVideoMetadataRepository(ElasticsearchClient client, IOptions<VideoMetadataIndexingOptions> videoMetadataIndexingOptions)
         {
             Console.WriteLine("**************************************");
             Console.WriteLine("Initializing IndexVideoMetadataRepository with Elasticsearch client.");
             _client = client;
+            _videoMetadataIndexingOptions = videoMetadataIndexingOptions.Value;
+
+            CreateIndexAsync();
+        }
+
+        public async Task CreateIndexAsync()
+        {
+            var createIndexResponse = await _client.Indices.CreateAsync(_videoMetadataIndexingOptions.IndexName, c => c
+                .Mappings(m => m
+                    .Dynamic(DynamicMapping.True)  // Allow dynamic mapping
+                )
+                .Settings(s => s
+                    .NumberOfShards(1)
+                    .NumberOfReplicas(1)
+                )
+            );
+
+            if (!createIndexResponse.IsSuccess())
+            {
+                Console.WriteLine($"Failed to create index: {createIndexResponse.DebugInformation}");
+            }
+            else
+            {
+                Console.WriteLine("Index created successfully.");
+            }
         }
 
 
-        public async Task<VideoMetadata> indexVideoMetadata(VideoMetadata videoMetadata)
+        public async Task<VideoMetadataIndexDTO> indexVideoMetadata(VideoMetadataIndexDTO videoMetadataIndexDTO)
         {
-            Debug.WriteLine("********************************");
-            Debug.WriteLine("videoMetadata: " + videoMetadata.videoId);
 
-            var response = await _client.IndexAsync(videoMetadata, dp => dp
-                .Index(IndexName)
-                .Id(videoMetadata.videoId)
+            var response = await _client.IndexAsync(videoMetadataIndexDTO, dp => dp
+                .Index(_videoMetadataIndexingOptions.IndexName)
+                .Id(videoMetadataIndexDTO.videoId)
             );
 
             if (!response.IsSuccess())
             {
-                Console.WriteLine($"Error indexing video metadata {videoMetadata.videoId}: {response.DebugInformation}");
-                throw new Exception($"Failed to index video metadata {videoMetadata.videoId} to Elasticsearch: {response.DebugInformation}");
+                Console.WriteLine($"Error indexing video metadata {videoMetadataIndexDTO.videoId}: {response.DebugInformation}");
+                throw new Exception($"Failed to index video metadata {videoMetadataIndexDTO.videoId} to Elasticsearch: {response.DebugInformation}");
             }
 
-            Console.WriteLine($"Successfully indexed video metadata {videoMetadata.videoId}.");
+            Console.WriteLine($"Successfully indexed video metadata {videoMetadataIndexDTO.videoId}.");
             // Return the document that was successfully indexed
-            return videoMetadata;
+            return videoMetadataIndexDTO;
         }
 
         // Changed return type from 'void' to 'Task<bool>'
         public async Task<bool> deleteVideoMetadataFromIndex(int videoId)
         {
-            var response = await _client.DeleteAsync(IndexName, videoId);
+            var response = await _client.DeleteAsync(_videoMetadataIndexingOptions.IndexName, videoId);
 
             if (!response.IsSuccess() && response.Result != Result.NotFound)
             {
@@ -74,7 +100,7 @@ namespace Backend.Repositories.VideoMetadataRepositories
             }
 
             var bulkResponse = await _client.BulkAsync(b => b
-                .Index(IndexName)
+                .Index(_videoMetadataIndexingOptions.IndexName)
                 .IndexMany(videoMetadatas, (bulkItem, video) => bulkItem.Id(video.videoId))
             );
 

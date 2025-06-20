@@ -21,8 +21,8 @@ namespace Backend.Repositories
         /// <returns>The created User entity (now tracked by the context).</returns>
         public async Task<User> CreateAsync(User user)
         {
-            user.userCreatedDate = DateOnly.FromDateTime(DateTime.UtcNow); // Set creation date
-            user.userUpdatedDate = DateOnly.FromDateTime(DateTime.UtcNow); // Set initial update date
+            user.userCreatedDate = DateTime.UtcNow; // Set creation date
+            user.userUpdatedDate = DateTime.UtcNow; // Set initial update date
             _context.users.Add(user);
             await _context.SaveChangesAsync(); // Persist changes to the database
             return user;

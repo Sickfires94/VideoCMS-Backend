@@ -90,7 +90,7 @@ namespace Backend.Services
             // Update only allowed fields. Password is handled by ChangePasswordAsync.
             existingUser.userName = user.userName;
             existingUser.userEmail = user.userEmail;
-            existingUser.userUpdatedDate = DateOnly.FromDateTime(DateTime.UtcNow); // Update the modified date
+            existingUser.userUpdatedDate = DateTime.UtcNow; // Update the modified date
 
             await _userRepository.SaveChangesAsync(); // Save the changes
             return existingUser;
@@ -118,7 +118,7 @@ namespace Backend.Services
 
             // Hash the new password before saving
             userToUpdate.userPassword = BCrypt.Net.BCrypt.HashPassword(newPassword);
-            userToUpdate.userUpdatedDate = DateOnly.FromDateTime(DateTime.UtcNow); // Update the modified date
+            userToUpdate.userUpdatedDate = DateTime.UtcNow; // Update the modified date
 
             await _userRepository.SaveChangesAsync();
             return true;

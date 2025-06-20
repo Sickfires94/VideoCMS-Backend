@@ -10,11 +10,16 @@ namespace Backend.Services.VideoMetaDataServices
     {
 
         private readonly IIndexVideoMetadataRepository _indexvideoMetadataRepository;
-        public IndexVideoMetadataService(IIndexVideoMetadataRepository indexvideoMetadataRepository)
+        private readonly IVideoMetadataToIndexDtoParser _videoMetadataToIndexDtoParser;
+
+
+
+        public IndexVideoMetadataService(IIndexVideoMetadataRepository indexvideoMetadataRepository, IVideoMetadataToIndexDtoParser videoMetadataToIndexDtoParser)
         {
             Console.WriteLine("***********************************");
             Console.WriteLine("Initializing Index Video Service");
             _indexvideoMetadataRepository = indexvideoMetadataRepository;
+            _videoMetadataToIndexDtoParser = videoMetadataToIndexDtoParser;
         }
 
 
@@ -53,7 +58,9 @@ namespace Backend.Services.VideoMetaDataServices
                 throw new ArgumentNullException(nameof(videoMetadata), "Video metadata cannot be null for indexing.");
             }
 
-            await _indexvideoMetadataRepository.indexVideoMetadata(videoMetadata);
+            VideoMetadataIndexDTO videoMetadataIndexDto = _videoMetadataToIndexDtoParser.parseVideoMetadataToIndex(videoMetadata);
+
+            await _indexvideoMetadataRepository.indexVideoMetadata(videoMetadataIndexDto);
             Console.WriteLine($"Service: Indexed video metadata with ID {videoMetadata.videoId}.");
 
         }

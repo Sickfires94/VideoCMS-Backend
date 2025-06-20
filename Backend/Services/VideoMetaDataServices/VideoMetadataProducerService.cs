@@ -19,7 +19,7 @@ namespace Backend.Services.VideoMetaDataServices
 
         public VideoMetadataProducerService(
             IServiceScopeFactory scopeFactory,
-            IOptions<VideoMetadataIndexingOptions> settings) // Inject IOptions
+            IOptions<VideoMetadataIndexingQueueOptions> settings) // Inject IOptions
         {
             _scopeFactory = scopeFactory;
             _exchange = settings.Value.Exchange; // Get from settings

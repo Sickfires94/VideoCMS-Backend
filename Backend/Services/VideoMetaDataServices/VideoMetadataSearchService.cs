@@ -1,13 +1,14 @@
-﻿using Backend.DTOs;
-using Backend.Repositories;
-using Backend.Repositories.VideoMetadataRepositories.Interfaces;
+﻿using Backend.Configurations.DataConfigs;
+using Backend.DTOs;
+using Backend.Repositories.VideoMetadataRepositories.Interfaces; // Corrected using statement
 using Backend.Services.VideoMetaDataServices.Interfaces;
+using System.Collections.Generic;
+using System.Threading.Tasks; // Ensure this is present for Task
 
 namespace Backend.Services.VideoMetaDataServices
 {
     public class VideoMetadataSearchService : IVideoMetadataSearchService
     {
-
         private readonly IVideoMetadataSearchingRepository _videoMetadataSearchingRepository;
 
         public VideoMetadataSearchService(IVideoMetadataSearchingRepository repository)
@@ -15,45 +16,20 @@ namespace Backend.Services.VideoMetaDataServices
             _videoMetadataSearchingRepository = repository;
         }
 
-
-        public async Task<List<VideoMetadata>>  searchVideoMetadataByCategory(string categoryName)
+        public async Task<List<VideoMetadataIndexDTO>> SearchVideoMetadata(string query)
         {
-            if (string.IsNullOrWhiteSpace(categoryName))
+            if (string.IsNullOrWhiteSpace(query))
             {
-                throw new ArgumentException("Category name cannot be empty or null.", nameof(categoryName));
+                // Return an empty list if the query is empty or just whitespace.
+                // This is generally better than throwing an exception for an empty search.
+                return new List<VideoMetadataIndexDTO>();
             }
-            // Delegate the call to the injected repository
-            return await _videoMetadataSearchingRepository.searchVideoMetadataByCategory(categoryName);
-        }
 
-        public async Task<List<VideoMetadata>> searchVideoMetadataByDescription(string videoDescription)
-        {
-            if (string.IsNullOrWhiteSpace(videoDescription))
-            {
-                throw new ArgumentException("Video description cannot be empty or null.", nameof(videoDescription));
-            }
-            // Delegate the call to the injected repository
-            return await _videoMetadataSearchingRepository.searchVideoMetadataByDescription(videoDescription);
-        }
+            // Delegate the generic search to the repository
+            var results = await _videoMetadataSearchingRepository.SearchByGeneralQueryAsync(query);
 
-        public async Task<List<VideoMetadata>> searchVideoMetadataByName(string videoName)
-        {
-            if (string.IsNullOrWhiteSpace(videoName))
-            {
-                throw new ArgumentException("Video name cannot be empty or null.", nameof(videoName));
-            }
-            // Delegate the call to the injected repository
-            return await _videoMetadataSearchingRepository.searchVideoMetadataByName(videoName);
-        }
-
-        public async Task<List<VideoMetadata>> searchVideoMetadataByTag(string tagName)
-        {
-            if (string.IsNullOrWhiteSpace(tagName))
-            {
-                throw new ArgumentException("Tag name cannot be empty or null.", nameof(tagName));
-            }
-            // Delegate the call to the injected repository
-            return await _videoMetadataSearchingRepository.searchVideoMetadataByTag(tagName);
+            // The repository already returns List<VideoMetadata>, which implements ICollection<VideoMetadata>
+            return results;
         }
     }
 }

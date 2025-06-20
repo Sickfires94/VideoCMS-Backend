@@ -5,7 +5,7 @@ namespace Backend.Repositories.VideoMetadataRepositories.Interfaces
     public interface IIndexVideoMetadataRepository
     {
         // Now returns the indexed VideoMetadata
-        Task<VideoMetadata> indexVideoMetadata(VideoMetadata videoMetadata);
+        Task<VideoMetadataIndexDTO> indexVideoMetadata(VideoMetadataIndexDTO videoMetadataIndexDto);
 
         // Returns true if deleted, false if not found/error
         Task<bool> deleteVideoMetadataFromIndex(int videoId);

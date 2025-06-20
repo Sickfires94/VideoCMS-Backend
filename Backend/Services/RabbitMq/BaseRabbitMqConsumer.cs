@@ -56,14 +56,14 @@ namespace Backend.Services.RabbitMq
                     switch (result)
                     {
                         case ProcessResult.Success:
-                            _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+                            await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
                             break;
                         case ProcessResult.FailDiscard:
-                            _channel.BasicRejectAsync(ea.DeliveryTag, requeue: false); // Discard without re-queue
+                            await _channel.BasicRejectAsync(ea.DeliveryTag, requeue: false); // Discard without re-queue
                             break;
                         case ProcessResult.FailRequeue:
                         default:
-                            _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true); // Re-queue
+                            await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true); // Re-queue
                             break;
                     }
                 };

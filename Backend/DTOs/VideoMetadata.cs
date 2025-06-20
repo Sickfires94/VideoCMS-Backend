@@ -16,16 +16,16 @@ namespace Backend.DTOs
         public string videoUrl { get; set; }
 
 
-        public ICollection<Tag>? videoTags { get; set; }
+        public ICollection<Tag>? videoTags { get; set; } = new List<Tag>()!;
         
         public int? categoryId { get; set; }
-        public Category? category { get; set; }
+        public Category? category { get; set; } = default!;
 
         [Required]
         public int userId { get; set; }
         public User? user { get; set; }
 
-        public DateOnly videoUploadDate { get; set; }
-        public DateOnly videoUpdatedDate { get; set; }
+        public DateTime videoUploadDate { get; set; }
+        public DateTime videoUpdatedDate { get; set; }
     }
 }

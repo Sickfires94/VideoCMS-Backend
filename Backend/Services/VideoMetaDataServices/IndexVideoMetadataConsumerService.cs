@@ -14,14 +14,14 @@ namespace Backend.Services.VideoMetaDataServices
     public class IndexVideoMetadataConsumerService : BaseRabbitMqConsumer
     {
 
-        private readonly VideoMetadataIndexingOptions _videoMetadataIndexingOptions; 
+        private readonly VideoMetadataIndexingQueueOptions _videoMetadataIndexingOptions; 
         private readonly IServiceScopeFactory _scopeFactory;
 
 
         public IndexVideoMetadataConsumerService(
             IRabbitMqConnection Connection,
             IServiceScopeFactory scopeFactory,
-             IOptions<VideoMetadataIndexingOptions> videoMetadataIndexingOptions
+             IOptions<VideoMetadataIndexingQueueOptions> videoMetadataIndexingOptions
             ) : base(Connection)
         {
 
@@ -64,6 +64,7 @@ namespace Backend.Services.VideoMetaDataServices
                     {
                         return ProcessResult.FailDiscard;
                     }
+
 
                     await indexVideoMetadataService.indexVideoMetadata(videoMetadata);
 

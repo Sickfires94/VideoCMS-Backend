@@ -7,5 +7,8 @@
         public Task<List<string>> ListBlobsAsync();
         public Task<bool> DeleteFileAsync(string fileName);
         public string GetBlobUrl(string fileName);
+
+        public Task<string> GenerateUploadSasUriAsync(string fileName, int expiryMinutes);
+        Task<string> GenerateDownloadSasUriAsync(string fileName, int expiryMinutes = 60);
     }
 }
