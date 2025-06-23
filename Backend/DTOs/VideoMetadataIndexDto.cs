@@ -5,6 +5,7 @@ namespace Backend.DTOs
     public class VideoMetadataIndexDTO
     {
 
+
         public VideoMetadataIndexDTO(int videoId, string videoName, string videoDescription, string videoUrl, ICollection<string>? videoTagNames, string categoryName, string userName, DateTime videoUploadDate, DateTime videoUpdatedDate)
         {
             this.videoId = videoId;
@@ -16,9 +17,14 @@ namespace Backend.DTOs
             this.userName = userName;
             this.videoUploadDate = videoUploadDate;
             this.videoUpdatedDate = videoUpdatedDate;
+           
         }
 
+
+
         public int videoId { get; set; }
+
+
 
         [Required]
         public string videoName { get; set; }
@@ -38,5 +44,6 @@ namespace Backend.DTOs
         
         public DateTime videoUploadDate { get; set; }
         public DateTime videoUpdatedDate { get; set; }
+
     }
 }

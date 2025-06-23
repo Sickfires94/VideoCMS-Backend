@@ -16,6 +16,12 @@ namespace Backend.Services.VideoMetaDataServices
             _videoMetadataSearchingRepository = repository;
         }
 
+
+        public async Task<IReadOnlyCollection<string>> GetSuggestionsAsync(string query)
+        {
+            return await _videoMetadataSearchingRepository.GetSuggestionsAsync(query);
+        }
+
         public async Task<List<VideoMetadataIndexDTO>> SearchVideoMetadata(string query)
         {
             if (string.IsNullOrWhiteSpace(query))

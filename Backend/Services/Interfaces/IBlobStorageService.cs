@@ -9,6 +9,6 @@
         public string GetBlobUrl(string fileName);
 
         public Task<string> GenerateUploadSasUriAsync(string fileName, int expiryMinutes);
-        Task<string> GenerateDownloadSasUriAsync(string fileName, int expiryMinutes = 60);
+        public Task<string> GenerateDownloadSasUriFromUrlAsync(string blobUrl, int expiryMinutes = 60);
     }
 }

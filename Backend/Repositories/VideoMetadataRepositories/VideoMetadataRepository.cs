@@ -39,16 +39,39 @@ namespace Backend.Repositories.VideoMetadataRepositories
             return fullVideoMetadata ?? videoMetadata;
         }
 
-
-        public Task<List<VideoMetadata>> getAllVideoMetadata()
-        {   
-            return  _context.videoMetadatas.ToListAsync();
-        }
-
-        public Task<VideoMetadata> getVideoMetadataById(int videoId)
+        public async Task deleteVideoMetadata(int id)
         {
-            return _context.videoMetadatas.FirstAsync(v => v.videoId == videoId);
+            await _context.videoMetadatas.Where(v => v.videoId == id).ExecuteDeleteAsync();
         }
 
+        public async Task<List<VideoMetadata>> getAllVideoMetadata()
+        {   
+            return await _context.videoMetadatas.ToListAsync();
+        }
+
+        public async Task<VideoMetadata?> getVideoMetadataById(int videoId)
+        {
+            return await _context.videoMetadatas
+                .Include(v => v.category)       // Include category (optional)
+                .Include(v => v.videoTags)      // Include videoTags (optional)
+                .Include(v => v.user)           // Include user (optional)
+                .FirstOrDefaultAsync<VideoMetadata>(v => v.videoId == videoId) ?? null;
+        }
+
+        public async Task<VideoMetadata> updateVideoMetadata(int id, VideoMetadata newVideo)
+        {
+            VideoMetadata video = await _context.videoMetadatas.SingleAsync(v => v.videoId == id);
+
+            video.videoName = newVideo.videoName;
+            video.videoDescription = newVideo.videoDescription;
+            video.category = newVideo.category;
+            video.videoName = newVideo.videoName;
+            video.videoTags = newVideo.videoTags;
+            video.videoUpdatedDate = DateTime.Now;
+
+            _context.SaveChanges();
+
+            return video;
+        }
     }
 }

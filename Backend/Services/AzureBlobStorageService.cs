@@ -98,42 +98,126 @@ namespace Backend.Services
         /// <returns>A string containing the full SAS URI for downloading.</returns>
         /// <exception cref="FileNotFoundException">Thrown if the specified blob does not exist.</exception>
         /// <exception cref="InvalidOperationException">Thrown if the BlobClient is not configured to generate SAS URIs.</exception>
-        public async Task<string> GenerateDownloadSasUriAsync(string fileName, int expiryMinutes = 60)
+        public async Task<string> GenerateDownloadSasUriFromUrlAsync(string blobUrl, int expiryMinutes = 60)
         {
-            // Get a reference to the specific blob client using the injected container client
-            BlobClient blobClient = _blobContainerClient.GetBlobClient(fileName);
-
-            // Important: Check if the blob actually exists before generating a download SAS
-            // This prevents generating a valid SAS for a non-existent blob.
-            if (!await blobClient.ExistsAsync())
+            if (string.IsNullOrWhiteSpace(blobUrl))
             {
-                throw new FileNotFoundException($"Blob '{fileName}' not found for SAS token generation.");
+                throw new ArgumentException("Blob URL cannot be empty.", nameof(blobUrl));
             }
 
-            // Create a SAS builder for the blob
+            string blobName;
+            try
+            {
+
+                Uri uri;
+                try
+                {
+                    uri = new Uri(blobUrl);
+                }
+                catch (UriFormatException e)
+                {
+                    return "";
+                }
+
+                string path = uri.AbsolutePath; // e.g., "/videos/Google%20newe%20Gemini%20%E2%80%94%20Mozilla%20Firefox%202025-06-12%2004-05-25.mp4"
+
+                Console.WriteLine($"DEBUG: Full URL received: {blobUrl}");
+                Console.WriteLine($"DEBUG: URI AbsolutePath: {path}");
+                Console.WriteLine($"DEBUG: Configured Container Name: '{_blobContainerClient.Name}'");
+
+                // --- Improved blobName extraction ---
+                // Find the index of the container name in the path.
+                // Ensures we get the part *after* the container name, including potential subfolders.
+                // Example path: /videos/subfolder/myblob.mp4
+                // Expected segment: /videos/
+                var containerPathSegment = $"/{_blobContainerClient.Name}/";
+                int containerPathIndex = path.IndexOf(containerPathSegment, StringComparison.OrdinalIgnoreCase);
+
+                if (containerPathIndex == -1)
+                {
+                    // This scenario is for blobs directly in the container root like `/containerName/fileName.mp4`
+                    // Check if the path ends exactly with the container name (e.g., /videos) followed by a file name
+                    // and not just /videos itself.
+                    if (path.Equals($"/{_blobContainerClient.Name}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new ArgumentException($"Provided blob URL '{blobUrl}' points only to the container root, not a specific blob. Expected a blob name after the container name (e.g., /videos/myblob.mp4).", nameof(blobUrl));
+                    }
+                    else if (path.StartsWith($"/{_blobContainerClient.Name}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Path starts with /containerName but doesn't have the trailing slash of the segment
+                        // This implies the blob is directly in the root of the container
+                        // Example: /videos/myblob.mp4
+                        blobName = path.Substring($"/{_blobContainerClient.Name}".Length).TrimStart('/');
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Provided blob URL '{blobUrl}' does not contain the expected container path segment '/{_blobContainerClient.Name}/'. Check if the URL is for the correct container or if it includes a subpath.", nameof(blobUrl));
+                    }
+                }
+                else
+                {
+                    // Path includes subfolders, e.g., /videos/folder/myblob.mp4
+                    blobName = path.Substring(containerPathIndex + containerPathSegment.Length);
+                }
+
+                // IMPORTANT: Uri.AbsolutePath already decodes URL-encoded characters.
+                // The blobName extracted here should be the *decoded* name.
+                // E.g., "Google newe Gemini — Mozilla Firefox 2025-06-12 04-05-25.mp4"
+                Console.WriteLine($"DEBUG: Extracted Blob Name (decoded): '{blobName}'");
+
+                if (string.IsNullOrWhiteSpace(blobName))
+                {
+                    throw new ArgumentException($"Could not extract a valid blob name from URL: {blobUrl}", nameof(blobUrl));
+                }
+            }
+            catch (UriFormatException ex)
+            {
+                throw new ArgumentException("Invalid blob URL format.", nameof(blobUrl), ex);
+            }
+            catch (ArgumentException) // Re-throw our custom ArgumentExceptions
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException($"Failed to parse blob name from URL '{blobUrl}': {ex.Message}", nameof(blobUrl), ex);
+            }
+
+            // Get the BlobClient from the _blobContainerClient using the extracted blobName.
+            BlobClient blobClient = _blobContainerClient.GetBlobClient(blobName);
+
+            // Important: Now, check if the blob actually exists using the correctly credentialed BlobClient
+            Console.WriteLine($"DEBUG: Attempting ExistsAsync() for blob name: '{blobClient.Name}' in container '{blobClient.BlobContainerName}'.");
+            bool blobExists = await blobClient.ExistsAsync();
+            Console.WriteLine($"DEBUG: Blob ExistsAsync() result: {blobExists}");
+
+            if (!blobExists)
+            {
+                Console.WriteLine($"DEBUG: Final check: Blob name '{blobClient.Name}' NOT FOUND. Confirm this exact name is in Azure Blob Storage.");
+                throw new FileNotFoundException($"Blob '{blobClient.Name}' (from URL: {blobUrl}) not found for SAS token generation. This filename should match exactly what is in Azure Blob Storage.");
+            }
+
             BlobSasBuilder sasBuilder = new BlobSasBuilder()
             {
-                BlobContainerName = _blobContainerClient.Name, // Use the name from the client directly
-                BlobName = fileName, // Apply SAS to this specific blob
+                BlobContainerName = _blobContainerClient.Name,
+                BlobName = blobClient.Name, // Use blobClient.Name for consistency
                 ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(expiryMinutes),
                 StartsOn = DateTimeOffset.UtcNow,
-                Resource = "b" // "b" for blob (object-level SAS)
+                Resource = "b"
             };
 
-            // --- Grant ONLY Read permission for downloading ---
             sasBuilder.SetPermissions(BlobSasPermissions.Read);
 
-            // Check if the client can generate SAS URIs (i.e., has the right credentials)
             if (!blobClient.CanGenerateSasUri)
             {
-                throw new InvalidOperationException("BlobClient cannot generate SAS URI for download. Ensure the underlying client was configured with appropriate credentials (e.g., StorageSharedKeyCredential or Azure AD with User Delegation Key).");
+                throw new InvalidOperationException("The BlobClient (derived from BlobContainerClient) cannot generate SAS URI. This suggests the BlobContainerClient itself is not configured with credentials that permit SAS generation (e.g., SharedKeyCredential or User Delegation Key).");
             }
 
-            // Generate the SAS URI
             Uri sasUri = blobClient.GenerateSasUri(sasBuilder);
 
-            return sasUri.ToString(); // Return the full URI including the SAS token
+            return sasUri.ToString();
         }
+        
 
 
         // --- Deleting a File ---

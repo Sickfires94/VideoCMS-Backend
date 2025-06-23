@@ -37,6 +37,11 @@ namespace Backend.Services.VideoMetaDataServices
             return video;
         }
 
+        public async Task deleteVideoMetadata(int id)
+        {
+            await _videoMetadataRepository.deleteVideoMetadata(id);
+        }
+
         public async Task<List<VideoMetadata>> getAllVideoMetadata()
         {
             var videoMetadatas = await _videoMetadataRepository.getAllVideoMetadata();
@@ -61,6 +66,11 @@ namespace Backend.Services.VideoMetaDataServices
                 Console.WriteLine($"Service: Video metadata for videoId: {id} not found.");
             }
             return videoMetadata;
+        }
+
+        public async Task<VideoMetadata> updateVideoMetadata(int id, VideoMetadata video)
+        {
+            return await _videoMetadataRepository.updateVideoMetadata(id, video);
         }
     }
 }

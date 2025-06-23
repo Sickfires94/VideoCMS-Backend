@@ -17,13 +17,18 @@ namespace Backend.Services.Configurations
                 .WithMany();
 
             builder.HasOne(v => v.category)
-                .WithMany();
+                .WithMany()
+                .HasForeignKey(v => v.categoryId);
 
             builder.HasOne(v => v.user)
-                .WithMany();
+                .WithMany()
+                .HasForeignKey(v => v.userId);
 
             builder.Property(v => v.videoUploadDate)
                 .HasDefaultValueSql("getdate()");
+
+            builder.Property(v => v.videoUpdatedDate)
+                .HasDefaultValueSql("getDate()");
         }
     }
 }

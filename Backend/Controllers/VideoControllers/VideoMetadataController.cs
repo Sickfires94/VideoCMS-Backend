@@ -9,7 +9,7 @@ namespace Backend.Controllers.VideoControllers
 
 
     [ApiController]
-    [Route("/api/video")]
+    [Route("api/[controller]")]
     public class VideoMetadataController : ControllerBase
     {
         private readonly IVideoMetadataService _videoMetadataService;
@@ -20,16 +20,52 @@ namespace Backend.Controllers.VideoControllers
         }
 
         [HttpGet]
-        public async Task<IEnumerable<VideoMetadata>> Get()
+        public async Task<IActionResult> Get()
         {
-            return await _videoMetadataService.getAllVideoMetadata();
+            return Ok(await _videoMetadataService.getAllVideoMetadata());
         }
 
         [HttpPost]
-        public async Task<VideoMetadata> Post([FromBody] VideoMetadata video)
+        public async Task<IActionResult> Post([FromBody] VideoMetadata video)
         {
-            /// TODO insert adding tags logic after implementing tags 
-            return await _videoMetadataService.addVideoMetadata(video);
+            return Ok(await _videoMetadataService.addVideoMetadata(video));
+        }
+
+        [HttpGet("{videoId}")]
+        public async Task<IActionResult> GetById(int videoId)
+        {
+            VideoMetadata video = await _videoMetadataService.getVideoMetadataById(videoId);
+            if(video == null)
+            {
+                return NotFound("Video By Id does not exist");
+            }
+
+            return Ok(video);
+        }
+
+        [HttpPost("{videoId}")]
+        public async Task<IActionResult> UpdateVideoMetadata(int videoId, [FromBody] VideoMetadata videoMetadata)
+        {
+            var updatedVideoMetadata = await _videoMetadataService.updateVideoMetadata(videoId, videoMetadata);
+            if (updatedVideoMetadata == null)
+            {
+                return NotFound("Video metadata not found for the given ID.");
+            }
+            return Ok(updatedVideoMetadata);
+        }
+
+        [HttpDelete("{videoId}")]
+        public async Task<IActionResult> Delete(int videoId)
+        {
+            try
+            {
+                await _videoMetadataService.deleteVideoMetadata(videoId);
+                return Ok("Video metadata deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error deleting video metadata: {ex.Message}");
+            }
         }
 
     }

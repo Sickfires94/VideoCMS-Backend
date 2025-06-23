@@ -19,13 +19,8 @@ namespace Backend.Controllers.VideoControllers
         }
 
         [HttpGet] // Now handles GET requests to the base route /api/video/search
-        public async Task<ActionResult<SearchVideoMetadataResponse>> Search([FromQuery] string? query)
+        public async Task<ActionResult<SearchVideoMetadataResponse>> Search([FromQuery] string query = "")
         {
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                return Ok(new List<VideoMetadata>());
-            }
-
             ICollection<VideoMetadataIndexDTO> query_result = await _searchService.SearchVideoMetadata(query); // Assuming a more generic search method now
             Debug.WriteLine("Query Count: " + query_result.Count);
             SearchVideoMetadataResponse response = new(query_result);
@@ -34,5 +29,20 @@ namespace Backend.Controllers.VideoControllers
             return Ok(response);
         }
 
+
+        [HttpGet ("suggestions/")]
+        public async Task<ActionResult<List<string>>> GetSuggestions([FromQuery] string query = "")
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return BadRequest("Query cannot be empty.");
+            }
+            var suggestions = await _searchService.GetSuggestionsAsync(query);
+            if (suggestions == null || !suggestions.Any())
+            {
+                return NotFound("No suggestions found for the given query.");
+            }
+            return Ok(suggestions);
+        }
     }
 }

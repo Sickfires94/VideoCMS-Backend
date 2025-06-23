@@ -3,9 +3,11 @@ using Backend.DTOs;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Analysis;
+using Elastic.Clients.Elasticsearch.Core.TermVectors;
 using Elastic.Clients.Elasticsearch.Mapping;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using Elastic.Transport.Products.Elasticsearch;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
 
@@ -88,7 +90,6 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
     }
 
 
-
     public async Task<List<VideoMetadataIndexDTO>> SearchByGeneralQueryAsync(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -145,5 +146,89 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
 
         return searchResponse.Documents.ToList();
     }
+
+
+    public async Task<List<string>> GetSuggestionsAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return new List<string>();
+
+        string lowerCaseQuery = query.ToLowerInvariant();
+
+        var searchRequest = new SearchRequest<VideoMetadataIndexDTO>(_videoMetadataIndexingOptions.IndexName)
+        {
+            Size = 20, // Grab more to allow filtering
+            Query = new MultiMatchQuery
+            {
+                Query = lowerCaseQuery,
+                Fields = new Field[]
+                {
+                new Field("videoName^3"),        // Higher priority
+                new Field("videoDescription^2"), // Medium priority
+                new Field("categoryName^1.5"),
+                new Field("videoTagNames")
+                },
+                Fuzziness = "AUTO",
+                Lenient = true
+            }
+        };
+
+        var response = await _client.SearchAsync<VideoMetadataIndexDTO>(searchRequest);
+
+        if (!response.IsValidResponse || response.Documents is null)
+        {
+            Debug.WriteLine($"Elasticsearch Error: {response.DebugInformation}");
+            return new List<string>();
+        }
+
+        var results = new List<string>();
+
+        foreach (var hit in response.Hits) // Use hits to preserve _score order
+        {
+            var doc = hit.Source;
+            if (doc == null) continue;
+
+            AddIfValid(results, doc.videoName, 6);
+            AddIfValid(results, doc.videoDescription, 6);
+            AddIfValid(results, doc.categoryName, 6);
+
+            if (doc.videoTagNames is not null)
+            {
+                foreach (var tag in doc.videoTagNames)
+                {
+                    AddIfValid(results, tag, 6);
+                    if (results.Count >= 10) break;
+                }
+            }
+
+            if (results.Count >= 10) break;
+        }
+
+        return results
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct() // avoid duplicates
+            .Take(10)   // enforce limit
+            .ToList();
+    }
+
+    private void AddIfValid(List<string> list, string? value, int wordLimit)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+
+        var shortened = ShortenToWords(value, wordLimit);
+        if (!string.IsNullOrWhiteSpace(shortened) && !list.Contains(shortened))
+        {
+            list.Add(shortened);
+        }
+    }
+
+    private static string ShortenToWords(string input, int wordLimit)
+    {
+        return string.Join(" ",
+            input.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                 .Take(wordLimit)
+        );
+    }
+
 
 }

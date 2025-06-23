@@ -99,9 +99,9 @@ namespace Backend.Controllers.VideoControllers
         }
 
         [HttpGet("generate-download-sas")]
-        public async Task<ActionResult<string>> GenerateDownloadSas([FromQuery] string fileName)
+        public async Task<ActionResult<string>> GenerateDownloadSas([FromQuery] string fileUrl)
         {
-            if (string.IsNullOrWhiteSpace(fileName))
+            if (string.IsNullOrWhiteSpace(fileUrl))
             {
                 return BadRequest("File name cannot be empty.");
             }
@@ -110,7 +110,7 @@ namespace Backend.Controllers.VideoControllers
             {
                 // Ensure GenerateDownloadSasUriAsync method exists in IBlobStorageService
                 // (You'd need to add it if it's not there, similar to GenerateUploadSasUriAsync)
-                string sasUri = await _blobStorageService.GenerateDownloadSasUriAsync(fileName, 60); // Read for 60 mins
+                string sasUri = await _blobStorageService.GenerateDownloadSasUriFromUrlAsync(fileUrl, 60); // Read for 60 mins
                 return Ok(sasUri);
             }
             catch (Exception ex)
