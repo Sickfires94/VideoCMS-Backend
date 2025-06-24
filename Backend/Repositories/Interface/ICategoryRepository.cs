@@ -11,10 +11,12 @@ namespace Backend.Repositories.Interface
         Task<List<Category>> GetCategoryListByNameAsync(string name);
         Task<IEnumerable<Category>> GetAllAsync();
         Task<IEnumerable<Category>> GetAllImmediateChildrenAsync(int categoryId);
-        Task<IEnumerable<Category>> GetAllChildrenAsync(int categoryId);
+        Task<IEnumerable<Category>> GetAllChildrenAndSelfAsync(int categoryId);
         Task<IEnumerable<Category>> GetAllParentsHierarchyAsync(int categoryId);
         Task SaveChangesAsync();
         Task<bool> HasChildrenAsync(int categoryId);
+        Task<IEnumerable<Category>> GetTopLevelCategoriesAsync();
+        Task<IEnumerable<Category>> GetAllCategoriesWithChildren();
 
     }
 }

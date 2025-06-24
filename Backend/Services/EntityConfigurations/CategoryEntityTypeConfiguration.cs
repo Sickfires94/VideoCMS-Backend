@@ -14,7 +14,7 @@ namespace Backend.Services.Configurations
                 .ValueGeneratedOnAdd();
 
             builder.HasOne(c => c.categoryParent)
-               .WithMany()
+               .WithMany(c => c.children)
                .IsRequired(false)
                .OnDelete(DeleteBehavior.NoAction);
         }

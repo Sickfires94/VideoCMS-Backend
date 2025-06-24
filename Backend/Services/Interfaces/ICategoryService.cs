@@ -70,5 +70,8 @@ namespace Backend.Services.Interfaces
         /// <param name="excludeCategoryId">Optional. If provided, this category ID will be excluded from the uniqueness check (useful for updates).</param>
         /// <returns>True if the name is unique within the specified parent scope, false otherwise.</returns>
         Task<bool> IsCategoryNameUniqueAsync(string categoryName, int? parentId, int? excludeCategoryId = null);
+        Task<IEnumerable<Category>> GetTopLevelCategoriesAsync();
+        Task<IEnumerable<Category>> GetAllCategoriesWithChildrenAsync();
+        
     }
 }

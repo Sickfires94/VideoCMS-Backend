@@ -4,6 +4,7 @@ using Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(VideoManagementApplicationContext))]
-    partial class VideoManagementApplicationContextModelSnapshot : ModelSnapshot
+    [Migration("20250624101059_AddChildrenInCategoryOptional")]
+    partial class AddChildrenInCategoryOptional
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -137,53 +140,6 @@ namespace Backend.Migrations
                     b.HasIndex("userId");
 
                     b.ToTable("videoMetadatas");
-                });
-
-            modelBuilder.Entity("Backend.DTOs.VideoMetadataChangeLog", b =>
-                {
-                    b.Property<int>("VideoId")
-                        .HasColumnType("int")
-                        .HasColumnOrder(0);
-
-                    b.Property<DateTime>("ChangeTime")
-                        .HasColumnType("datetime2")
-                        .HasColumnOrder(1);
-
-                    b.Property<string>("ChangeType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<int?>("PreviousCategoryId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PreviousVideoDescription")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PreviousVideoName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PreviousVideoUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("UpdatedBy")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("UpdatedCategoryId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UpdatedVideoDescription")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UpdatedVideoName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UpdatedVideoUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("VideoId", "ChangeTime");
-
-                    b.ToTable("VideoMetadataChangeLogs");
                 });
 
             modelBuilder.Entity("TagVideoMetadata", b =>

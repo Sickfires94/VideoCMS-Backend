@@ -2,7 +2,9 @@
 using Backend.Repositories.Interface;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services;
+using Elastic.Clients.Elasticsearch.IndexManagement;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using System.Diagnostics;
 
 namespace Backend.Repositories
@@ -31,7 +33,9 @@ namespace Backend.Repositories
 
         public async Task<IEnumerable<Category>> GetAllAsync()
         {
-            return await _context.categories.ToListAsync();
+            return await _context.categories
+                .AsNoTracking()
+                .ToListAsync();
         }
 
         public async Task<IEnumerable<Category>> GetAllParentsHierarchyAsync(int categoryId)
@@ -69,16 +73,18 @@ namespace Backend.Repositories
             return children;
         }
 
-        public async Task<IEnumerable<Category>> GetAllChildrenAsync(int categoryId)
+        public async Task<IEnumerable<Category>> GetAllChildrenAndSelfAsync(int categoryId)
         {
             var descendants = new List<Category>();
+
+            descendants.Add(await GetByIdAsync(categoryId));
+
             var directChildren = await GetAllImmediateChildrenAsync(categoryId); // Get immediate children
 
             foreach (var child in directChildren)
             {
-                descendants.Add(child);
                 // Recursively add children of this child
-                var nestedChildren = await GetAllChildrenAsync(child.categoryId);
+                var nestedChildren = await GetAllChildrenAndSelfAsync(child.categoryId);
                 descendants.AddRange(nestedChildren);
             }
             return descendants;
@@ -141,7 +147,51 @@ namespace Backend.Repositories
             return await _context.categories.AnyAsync(c => c.categoryParentId == categoryId);
         }
 
+        public async Task<IEnumerable<Category>> GetTopLevelCategoriesAsync()
+        {
+            return await _context.categories
+                                 .AsNoTracking()
+                                 .Where(c => c.categoryParentId == null) // Filter where parent ID is null
+                                 .OrderBy(c => c.categoryName)
+                                 .ToListAsync();
+        }
 
+        public async Task<IEnumerable<Category>> GetAllCategoriesWithChildren()
+        {
+            List<Category> categories = await _context.categories
+                .AsNoTracking()
+                .Where(c => c.categoryParentId == null) // Filter for top-level parents
+                .Include(c => c.children)
+                .ThenInclude(c => c.children)
+                .ThenInclude(c=> c.children)
+                .OrderBy(c => c.categoryName) // Order the top-level categories
+                .ToListAsync();
+
+            foreach(Category c in categories)
+            {
+                await removeParentIds(c);
+            }
+
+            return categories;
+        }
+
+        private async Task removeParentIds(Category c)
+        {
+            c.categoryParentId = null;
+            c.categoryParent = null;
+
+            if (c.children.IsNullOrEmpty())
+            {
+                return;
+            }
+
+            foreach(Category child in c.children)
+            {
+                await removeParentIds(child);
+            }
+
+            return;
+        }
     }
 }
 

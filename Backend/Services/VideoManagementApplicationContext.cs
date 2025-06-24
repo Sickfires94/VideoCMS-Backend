@@ -1,5 +1,6 @@
 ﻿using Backend.DTOs;
 using Backend.Services.Configurations;
+using Backend.Services.EntityConfigurations;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection.Metadata;
 
@@ -13,6 +14,7 @@ namespace Backend.Services
         public DbSet<Tag> tags { get; set; }
         public DbSet<User> users { get; set; }
         public DbSet<VideoMetadata> videoMetadatas { get; set; }
+        public DbSet<VideoMetadataChangeLog> VideoMetadataChangeLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -23,6 +25,7 @@ namespace Backend.Services
             new CategoryEntityTypeConfiguration().Configure(modelBuilder.Entity<Category>());
             new TagEntityTypeConfiguration().Configure(modelBuilder.Entity<Tag>());
             new VideoMetadataEntityTypeConfiguration().Configure(modelBuilder.Entity<VideoMetadata>());
+            new VideoMetadataChangeLogEntityTypeConfiguration().Configure(modelBuilder.Entity<VideoMetadataChangeLog>());
 
         }
     }

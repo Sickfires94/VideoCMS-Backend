@@ -88,7 +88,7 @@ namespace Backend.Services
             // Note: The CategoryRepository's GetAllChildrenAsync is already recursive.
             // If the recursion depth is very high, consider iterative approaches
             // or specialized database queries (e.g., CTEs) for performance.
-            return await _categoryRepository.GetAllChildrenAsync(categoryId);
+            return await _categoryRepository.GetAllChildrenAndSelfAsync(categoryId);
         }
 
         /// <summary>
@@ -203,6 +203,16 @@ namespace Backend.Services
         {
             var categories = await _categoryRepository.GetCategoryListByNameAsync(categoryName);
             return categories;
+        }
+
+        public async Task<IEnumerable<Category>> GetTopLevelCategoriesAsync()
+        {
+            return await _categoryRepository.GetTopLevelCategoriesAsync();
+        }
+
+        public async Task<IEnumerable<Category>> GetAllCategoriesWithChildrenAsync()
+        {
+            return await _categoryRepository.GetAllCategoriesWithChildren();
         }
 
     }

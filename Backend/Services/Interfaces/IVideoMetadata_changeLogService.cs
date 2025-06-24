@@ -1,8 +1,8 @@
 ﻿using Backend.DTOs;
 
-namespace Backend.Repositories.Interface
+namespace Backend.Services.Interfaces
 {
-    public interface IVideoMetadata_changelogRepository
+    public interface IVideoMetadata_changeLogService
     {
         Task<IEnumerable<VideoMetadataChangeLog>> getLogsByVideoId(int videoId);
     }

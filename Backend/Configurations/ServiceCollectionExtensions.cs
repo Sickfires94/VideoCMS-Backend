@@ -1,5 +1,6 @@
 ﻿using Azure.Storage.Blobs;
 using Backend.Configurations.DataConfigs;
+using Backend.Interceptors;
 using Backend.Repositories;
 using Backend.Repositories.Interface; // Assuming ITagRepository is here, from previous context
 using Backend.Repositories.VideoMetadataRepositories;
@@ -15,15 +16,13 @@ using Elastic.Clients.Elasticsearch;
 using Elastic.Transport;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using RabbitMQ.Client;
 using System.Diagnostics;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Text;
+
 
 namespace Backend.Configurations
 {
@@ -34,7 +33,11 @@ namespace Backend.Configurations
         /// </summary>
         public static IServiceCollection AddDatabaseConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<VideoManagementApplicationContext>(options =>
+            services.AddHttpContextAccessor();
+            services.AddScoped<VideoMetadataAuditInterceptor>();
+
+            services.AddDbContext<VideoManagementApplicationContext>((serviceProvider, options) => // Use the overload with serviceProvider
+            {
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
                     sqlServerOptionsAction: sqlOptions =>
                     {
@@ -43,7 +46,14 @@ namespace Backend.Configurations
                             maxRetryDelay: TimeSpan.FromSeconds(1),
                             errorNumbersToAdd: null
                         );
-                    }));
+                    });
+
+                // Add the interceptor here
+                // Resolve the interceptor from the serviceProvider
+                var auditInterceptor = serviceProvider.GetRequiredService<VideoMetadataAuditInterceptor>();
+                options.AddInterceptors(auditInterceptor);
+            });
+
             return services;
         }
 
@@ -74,6 +84,13 @@ namespace Backend.Configurations
         {
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<ICategoryService, CategoryService>();
+            return services;
+        }
+
+        public static IServiceCollection AddVideoLogsModule(this IServiceCollection services)
+        {
+            services.AddScoped<IVideoMetadata_changelogRepository, VideoMetadata_changelogRepository>();
+            services.AddScoped<IVideoMetadata_changeLogService, VideoMetadata_changeLogService>();
             return services;
         }
 

@@ -6,5 +6,6 @@
         public string categoryName { get; set; }
         public int? categoryParentId { get; set; }
         public Category? categoryParent { get; set; }
+        public IEnumerable<Category>? children { get; set; }
     }
 }

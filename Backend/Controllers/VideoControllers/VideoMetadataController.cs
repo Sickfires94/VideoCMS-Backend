@@ -2,7 +2,9 @@
 using Backend.Services;
 using Backend.Services.VideoMetaDataServices;
 using Backend.Services.VideoMetaDataServices.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 
 namespace Backend.Controllers.VideoControllers
 {
@@ -13,15 +15,19 @@ namespace Backend.Controllers.VideoControllers
     public class VideoMetadataController : ControllerBase
     {
         private readonly IVideoMetadataService _videoMetadataService;
+        private readonly ILogger<VideoMetadataController> _logger;
 
-        public VideoMetadataController(IVideoMetadataService videoMetadataService)
+        public VideoMetadataController(IVideoMetadataService videoMetadataService, ILogger<VideoMetadataController> logger)
         {
             _videoMetadataService = videoMetadataService;
+            _logger = logger;
         }
 
         [HttpGet]
         public async Task<IActionResult> Get()
         {
+            Debug.WriteLine("Writing Log");
+            _logger.LogWarning("Retrieving all videos");
             return Ok(await _videoMetadataService.getAllVideoMetadata());
         }
 

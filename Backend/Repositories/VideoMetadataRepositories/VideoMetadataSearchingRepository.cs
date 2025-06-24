@@ -9,6 +9,7 @@ using Elastic.Clients.Elasticsearch.QueryDsl;
 using Elastic.Transport.Products.Elasticsearch;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using System.Diagnostics;
 
 namespace Backend.Repositories.VideoMetadataRepositories;
@@ -90,7 +91,7 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
     }
 
 
-    public async Task<List<VideoMetadataIndexDTO>> SearchByGeneralQueryAsync(string query)
+    public async Task<List<VideoMetadataIndexDTO>> SearchByGeneralQueryAsync(string query, List<string>? categories)
     {
         if (string.IsNullOrWhiteSpace(query))
             return new List<VideoMetadataIndexDTO>();
@@ -112,7 +113,6 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
                     {
                         new Field("videoName^2"),
                         new Field("videoDescription"),
-                        new Field("categoryName"),
                         new Field("videoTagNames")
                     },
                     // Fuzziness can still be useful for typos, but n-grams handle partials.
@@ -144,7 +144,20 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
             return new List<VideoMetadataIndexDTO>();
         }
 
-        return searchResponse.Documents.ToList();
+
+        List<VideoMetadataIndexDTO> videos = searchResponse.Documents.ToList();
+        if (categories.IsNullOrEmpty()) return videos;
+
+        List<VideoMetadataIndexDTO> filteredVideos = new List<VideoMetadataIndexDTO>();
+
+
+        for (int i = 0; i < videos.Count(); i++)
+        {
+            if (categories.Contains(videos[i].categoryName)) filteredVideos.Add(videos[i]);
+        }
+
+
+        return filteredVideos;
     }
 
 
@@ -155,48 +168,68 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
 
         string lowerCaseQuery = query.ToLowerInvariant();
 
-        var searchRequest = new SearchRequest<VideoMetadataIndexDTO>(_videoMetadataIndexingOptions.IndexName)
-        {
-            Size = 20, // Grab more to allow filtering
-            Query = new MultiMatchQuery
-            {
-                Query = lowerCaseQuery,
-                Fields = new Field[]
-                {
-                new Field("videoName^3"),        // Higher priority
-                new Field("videoDescription^2"), // Medium priority
-                new Field("categoryName^1.5"),
-                new Field("videoTagNames")
-                },
-                Fuzziness = "AUTO",
-                Lenient = true
-            }
-        };
+        var searchResponse = await _client.SearchAsync<VideoMetadataIndexDTO>(s => s
+            .Indices(_videoMetadataIndexingOptions.IndexName)
+            .Size(20)
+            .Query(q => q.Bool(b => b
+                .Should(sh => sh
+                        .Prefix(p => p
+                            .Field(f => f.videoName)
+                            .Value(lowerCaseQuery)
+                        ),
+                    sh => sh
+                        .Prefix(p => p
+                            .Field(f => f.videoDescription)
+                            .Value(lowerCaseQuery)
+                        ),
+                    sh => sh
+                        .Prefix(p => p
+                            .Field(f => f.categoryName)
+                            .Value(lowerCaseQuery)
+                        ),
+                    sh => sh
+                        .Prefix(p => p
+                            .Field(f => f.videoTagNames)
+                            .Value(lowerCaseQuery)
+                        )
+                )
+                .MinimumShouldMatch(1)
+            ))
+        );
 
-        var response = await _client.SearchAsync<VideoMetadataIndexDTO>(searchRequest);
-
-        if (!response.IsValidResponse || response.Documents is null)
+        if (!searchResponse.IsValidResponse || searchResponse.Documents is null)
         {
-            Debug.WriteLine($"Elasticsearch Error: {response.DebugInformation}");
+            Debug.WriteLine($"[Elasticsearch Error] {searchResponse.DebugInformation}");
             return new List<string>();
         }
 
         var results = new List<string>();
 
-        foreach (var hit in response.Hits) // Use hits to preserve _score order
+        foreach (var doc in searchResponse.Hits)
         {
-            var doc = hit.Source;
-            if (doc == null) continue;
+            var source = doc.Source;
+            if (source == null) continue;
 
-            AddIfValid(results, doc.videoName, 6);
-            AddIfValid(results, doc.videoDescription, 6);
-            AddIfValid(results, doc.categoryName, 6);
+            if (!string.IsNullOrWhiteSpace(source.videoName) &&
+                source.videoName.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                AddIfValid(results, source.videoName, 6);
 
-            if (doc.videoTagNames is not null)
+            if (!string.IsNullOrWhiteSpace(source.videoDescription) &&
+                source.videoDescription.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                AddIfValid(results, source.videoDescription, 6);
+
+            if (!string.IsNullOrWhiteSpace(source.categoryName) &&
+                source.categoryName.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                AddIfValid(results, source.categoryName, 6);
+
+            if (source.videoTagNames is not null)
             {
-                foreach (var tag in doc.videoTagNames)
+                foreach (var tag in source.videoTagNames)
                 {
-                    AddIfValid(results, tag, 6);
+                    if (!string.IsNullOrWhiteSpace(tag) &&
+                        tag.StartsWith(query, StringComparison.OrdinalIgnoreCase))
+                        AddIfValid(results, tag, 6);
+
                     if (results.Count >= 10) break;
                 }
             }
@@ -206,8 +239,8 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
 
         return results
             .Where(r => !string.IsNullOrWhiteSpace(r))
-            .Distinct() // avoid duplicates
-            .Take(10)   // enforce limit
+            .Distinct()
+            .Take(10)
             .ToList();
     }
 

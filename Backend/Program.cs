@@ -1,60 +1,115 @@
-using Azure.Storage.Blobs;
-using Backend.Configurations;
-using Backend.DTOs; // Not directly used here, but good to keep if DTOs are referenced indirectly by other configs.
-using Backend.Services; // Not directly used here.
-using Backend.Services.Interfaces; // Not directly used here.
+﻿using Backend.Configurations;
+using Backend.Configurations.DataConfigs;
+using Elastic.Apm.SerilogEnricher;
+using Elastic.Channels;
 using Elastic.Clients.Elasticsearch;
+using Elastic.CommonSchema.Serilog;
+using Elastic.Ingest.Elasticsearch;
+using Elastic.Serilog.Sinks;
 using Elastic.Transport;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
+using Serilog;
+using Serilog.Events;
+using System.Diagnostics;
+using DataStreamName = Elastic.Ingest.Elasticsearch.DataStreams.DataStreamName;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Define CORS policy name
 const string allowAllOrigins = "AllowAll";
 
-builder.Logging.AddConsole();
+// ─────────────────────────────────────────────────────────────
+// 🟡 Bootstrap logger (minimal logger before Serilog is configured)
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-// --- Service Configuration ---
-// Infrastructure Services (typically configured first)
-builder.Services
-    .AddDatabaseConfiguration(builder.Configuration)
-    .AddCorsConfiguration(allowAllOrigins)
-    .AddRabbitMqConfiguration(builder.Configuration) // Includes generic IMessageProducer
-    .AddAzureBlobStorageConfiguration(builder.Configuration)
-    .AddElasticsearchConfiguration(builder.Configuration)
-    .AddTagGenerationService(builder.Configuration);
-   
+try
+{
+    Log.Information("Starting web host");
 
-// Domain/Feature Modules (contain repositories and services specific to a domain)
-builder.Services
-    .AddUserModule()
-    .AddTagModule()
-    .AddCategoryModule()
-    .AddVideoMetadataModule(builder.Configuration); // Includes all video metadata related services and hosted services
+    // 👇 Final Serilog setup with Elastic sink (correct usage for Elastic.Serilog.Sinks)
+    builder.Host.UseSerilog((context, services, config) =>
+    {
+        var elasticConfig = context.Configuration
+            .GetSection("backend:ElasticSearch")
+            .Get<ElasticSearchCredentials>();
 
-// Core API and Cross-Cutting Concerns
-builder.Services
-    .AddApiCoreServices() // Controllers, Swagger, Endpoints
-    .AddJwtAuthentication(builder.Configuration) // JWT Bearer
-    .AddHealthCheckServices(); // Health Checks (can be placed after other services are defined)
+        var connectionSettings = new ElasticsearchClientSettings(new Uri(elasticConfig.ConnectionURL))
+            .Authentication(new BasicAuthentication(elasticConfig.username, elasticConfig.password))
+            .ServerCertificateValidationCallback((_, _, _, _) => true); // Don't use in production
 
-var app = builder.Build();
+        var client = new Elastic.Clients.Elasticsearch.ElasticsearchClient(connectionSettings);
 
-// --- Middleware Pipeline Configuration ---
-// Order of middleware matters!
+        config
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+            .Enrich.FromLogContext()
+            .Enrich.WithElasticApmCorrelationInfo()
+            .WriteTo.Console(new EcsTextFormatter())
+            .WriteTo.Elasticsearch(new ElasticsearchSinkOptions(client.Transport)
+            {
+                DataStream = new DataStreamName("logs", "videocms"),
+                BootstrapMethod = BootstrapMethod.Failure,
+                TextFormatting = new EcsTextFormatterConfiguration<LogEventEcsDocument>
+                {
+                    MapCustom = (e, _) => e
+                },
+                ConfigureChannel = channelOpts =>
+                {
+                    channelOpts.BufferOptions = new BufferOptions
+                    {
+                        ExportMaxConcurrency = 4
+                    };
+                }
+            });
+    });
 
-// Development specific middleware (e.g., Swagger)
-app.UseSwaggerDocumentation(app.Environment);
+    Serilog.Debugging.SelfLog.Enable(msg => Debug.WriteLine(msg));
 
-// Routing, CORS, and Security (generally ordered this way)
-app.UseRoutingMiddleware(); // Now only handles the UseRouting middleware
-app.UseCorsPolicy(allowAllOrigins); // Must be after UseRouting and before UseAuthentication/UseAuthorization
-app.UseSecurityMiddlewares(); // HttpsRedirection, Authentication, Authorization
+    builder.Logging.ClearProviders(); // Let Serilog handle logging
+    builder.Logging.AddConsole();     // Optional: also add console for app logs
 
-// --- Endpoint Mapping ---
-// Map controllers and other endpoints
-app.MapControllers();
-app.MapHealthChecks("/health"); // Expose health check endpoint
+    builder.Services
+        .AddDatabaseConfiguration(builder.Configuration)
+        .AddCorsConfiguration(allowAllOrigins)
+        .AddRabbitMqConfiguration(builder.Configuration)
+        .AddAzureBlobStorageConfiguration(builder.Configuration)
+        .AddElasticsearchConfiguration(builder.Configuration)
+        .AddTagGenerationService(builder.Configuration)
+        .AddUserModule()
+        .AddTagModule()
+        .AddCategoryModule()
+        .AddVideoLogsModule()
+        .AddVideoMetadataModule(builder.Configuration)
+        .AddApiCoreServices()
+        .AddJwtAuthentication(builder.Configuration)
+        .AddHealthCheckServices();
 
-app.Run();
+    var app = builder.Build();
+
+    // Test Elasticsearch connection (optional)
+    var httpClient = new HttpClient();
+    var pingResult = await httpClient.GetAsync("http://localhost:9200");
+    var json = await pingResult.Content.ReadAsStringAsync();
+    Console.WriteLine("Elasticsearch Ping: " + json);
+
+    Log.Information("Test log to Elasticsearch");
+
+    // ─────────────────────────────────────────────────────────────
+    app.UseSwaggerDocumentation(app.Environment);
+    app.UseRoutingMiddleware();
+    app.UseCorsPolicy(allowAllOrigins);
+    app.UseSecurityMiddlewares();
+
+    app.MapControllers();
+    app.MapHealthChecks("/health");
+
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application start-up failed");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
