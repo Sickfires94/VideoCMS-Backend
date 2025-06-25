@@ -1,10 +1,14 @@
-﻿using Backend.DTOs;
+﻿using Backend.Configurations.DataConfigs;
+using Backend.DTOs;
 using Backend.Services.Interface; // Assuming IUserService is in this namespace
 using Microsoft.AspNetCore.Authorization; // For [Authorize] attribute
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Backend.Controllers
@@ -64,23 +68,29 @@ namespace Backend.Controllers
         /// <param name="loginCredentials">User's email and password for authentication.</param>
         /// <returns>200 OK with user info if authenticated, 401 Unauthorized if credentials are invalid.</returns>
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] User loginCredentials)
+        public async Task<IActionResult> Login([FromBody] User loginCredentials) // Assuming 'User' here has userEmail and userPassword
         {
-            Debug.WriteLine("Reached inside controller");
+            Debug.WriteLine("Reached inside controller Login action.");
 
             if (string.IsNullOrWhiteSpace(loginCredentials.userEmail) || string.IsNullOrWhiteSpace(loginCredentials.userPassword))
             {
                 return BadRequest("Email and password are required.");
             }
 
-
-            var authenticatedUser = await _userService.AuthenticateUserAsync(loginCredentials);
-            if (authenticatedUser == null)
+            // Authenticate user and get the AuthenticatedUserDto which now includes the token
+            var authenticatedUserDto = await _userService.AuthenticateUserAsync(loginCredentials);
+            if (authenticatedUserDto == null)
             {
                 return Unauthorized("Invalid email or password."); // 401 Unauthorized
             }
 
-            return Ok(new { Message = "Login successful!", User = new { authenticatedUser.userId, authenticatedUser.userName, authenticatedUser.userEmail, authenticatedUser.Token } });
+            // Return the AuthenticatedUserDto directly, which already contains the Token.
+            // This matches the desired response structure.
+            return Ok(new
+            {
+                Message = "Login successful!",
+                User = authenticatedUserDto // This object already contains userId, userName, userEmail, Role, and Token
+            });
         }
 
         /// <summary>

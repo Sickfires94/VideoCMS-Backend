@@ -14,6 +14,9 @@ namespace Backend.DTOs
         [Required]
         public string userEmail { get; set; }
 
+        [Required]
+        public string role { get; set; } = "user";
+
        public DateTime userCreatedDate { get; set; }
         public DateTime userUpdatedDate { get; set; }
 

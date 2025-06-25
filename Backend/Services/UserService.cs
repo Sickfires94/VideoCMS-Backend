@@ -20,14 +20,16 @@ namespace Backend.Services
             _tokenService = tokenService; // Assign injected service
         }
 
-        public async Task<AuthenticatedUserDto?> AuthenticateUserAsync(User user)
+        public async Task<AuthenticatedUserDto?> AuthenticateUserAsync(User user) // Return type now AuthenticatedUserDto
         {
-            var storedUser = await _userRepository.GetByEmailAsync(user.userEmail);
+            var storedUser = await _userRepository.GetByEmailAsync(user.userEmail); // Assumed method name
 
             if (storedUser != null && BCrypt.Net.BCrypt.Verify(user.userPassword, storedUser.userPassword))
             {
                 // User authenticated, now generate JWT token using the dedicated service
-                var token = _tokenService.GenerateJwtToken(storedUser); // Call the token service
+                // Pass the actual User entity to the TokenService
+                var token = _tokenService.GenerateJwtToken(storedUser); // Pass Backend.Models.User
+
                 return new AuthenticatedUserDto
                 {
                     userId = storedUser.userId,
@@ -35,6 +37,7 @@ namespace Backend.Services
                     userEmail = storedUser.userEmail,
                     userCreatedDate = storedUser.userCreatedDate,
                     userUpdatedDate = storedUser.userUpdatedDate,
+                    role = storedUser.role, // Populate the Role from the storedUser entity
                     Token = token
                 };
             }

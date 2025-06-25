@@ -2,6 +2,7 @@
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services.RabbitMq;
 using Backend.Services.VideoMetaDataServices.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using System.Diagnostics;
 
 namespace Backend.Services.VideoMetaDataServices
@@ -11,6 +12,7 @@ namespace Backend.Services.VideoMetaDataServices
         private readonly IVideoMetadataRepository _videoMetadataRepository;
         private readonly IVideoMetaDataProducerService _producerService;
 
+        // [Authorize(Policy = "LoggedIn")]
 
         public VideoMetadataService(IVideoMetadataRepository videoMetadataRepository, IVideoMetaDataProducerService videoMetadataProducerService)
         {

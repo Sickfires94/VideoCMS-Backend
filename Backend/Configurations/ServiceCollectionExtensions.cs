@@ -253,15 +253,19 @@ namespace Backend.Configurations
         /// <summary>
         /// Configures JWT Bearer authentication and registers the TokenService.
         /// </summary>
+        public static IServiceCollection AddTokenService(this IServiceCollection services)
+        {
+            services.AddScoped<ITokenService, TokenService>(); // Register TokenService
+            return services;
+        }
+
+        /// <summary>
+        /// Configures JWT Bearer authentication.
+        /// </summary>
         public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
         {
-            // Bind JWT settings from appsettings.json
             services.Configure<JwtConfig>(configuration.GetSection("backend:Jwt"));
 
-            // Register the Token Service
-            services.AddScoped<ITokenService, TokenService>();
-
-            // Configure JWT Bearer Authentication
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -277,11 +281,12 @@ namespace Backend.Configurations
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.key))
+                    ValidateIssuer = false,               // Set to false as per request
+                    ValidateAudience = false,             // Set to false as per request
+                    ValidateLifetime = true,              // Keep true for security
+                    ValidateIssuerSigningKey = true,      // Keep true for security
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.key)),
+                    ClockSkew = TimeSpan.Zero             // Good practice for strict expiry
                 };
             });
 
@@ -292,8 +297,12 @@ namespace Backend.Configurations
         {
             services.AddAuthorization(options =>
             {
-                options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-                options.AddPolicy("UserOnly", policy => policy.RequireRole("User"));
+                options.AddPolicy("AdminOnly", policy => policy.RequireRole("admin"));
+
+                options.AddPolicy("LoggedIn", policy =>
+                {
+                    policy.RequireAuthenticatedUser(); // This ensures the user is authenticated
+                });
             });
             return services;
         }
@@ -334,6 +343,10 @@ namespace Backend.Configurations
             return services;
         
         }
+
+       
+        
+      
 
         /// <summary>
         /// Adds health check services.

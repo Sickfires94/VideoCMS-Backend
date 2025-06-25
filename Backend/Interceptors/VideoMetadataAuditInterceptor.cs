@@ -32,7 +32,8 @@ namespace Backend.Interceptors
             if (context == null) return;
 
             var auditEntries = new List<VideoMetadataChangeLog>();
-            var currentUserId = GetCurrentUserId(); // Implement this based on your authentication
+            // var currentUserId = GetCurrentUserId(); // Implement this based on your authentication
+            var currentUserName = GetCurrentUserName(); // Implement this based on your authentication
 
             foreach (var entry in context.ChangeTracker.Entries<VideoMetadata>())
             {
@@ -45,7 +46,8 @@ namespace Backend.Interceptors
                 {
                     VideoId = (int)entry.Property("videoId").CurrentValue, // Assuming videoId is set for all states
                     ChangeTime = DateTime.UtcNow,
-                    UpdatedBy = currentUserId
+                    // UpdatedBy = currentUserId,
+                    UpdatedByUserName = currentUserName
                 };
 
                 switch (entry.State)
@@ -129,6 +131,20 @@ namespace Backend.Interceptors
                 }
             }
             return null; // Or a default 'system' user ID
+        }
+
+        private string? GetCurrentUserName()
+        {
+            if (_httpContextAccessor?.HttpContext?.User?.Identity is ClaimsIdentity identity && identity.IsAuthenticated)
+            {
+                // Assuming the user's name is stored in ClaimTypes.Name
+                var userNameClaim = identity.FindFirst(ClaimTypes.Name);
+                if (userNameClaim != null)
+                {
+                    return userNameClaim.Value;
+                }
+            }
+            return null; // Return null if user name is not found or not authenticated
         }
     }
 }

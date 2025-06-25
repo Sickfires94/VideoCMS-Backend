@@ -4,6 +4,7 @@ using Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(VideoManagementApplicationContext))]
-    partial class VideoManagementApplicationContextModelSnapshot : ModelSnapshot
+    [Migration("20250625074809_AddRoleToUser")]
+    partial class AddRoleToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -170,8 +173,8 @@ namespace Backend.Migrations
                     b.Property<string>("PreviousVideoUrl")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("UpdatedByUserName")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int?>("UpdatedBy")
+                        .HasColumnType("int");
 
                     b.Property<int?>("UpdatedCategoryId")
                         .HasColumnType("int");

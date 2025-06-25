@@ -40,10 +40,10 @@ try
         var client = new Elastic.Clients.Elasticsearch.ElasticsearchClient(connectionSettings);
 
         config
-            .MinimumLevel.Information()
+            .MinimumLevel.Warning()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .Enrich.FromLogContext()
-            .Enrich.WithElasticApmCorrelationInfo()
+            // .Enrich.FromLogContext()
+            // .Enrich.WithElasticApmCorrelationInfo()
             .WriteTo.Console(new EcsTextFormatter())
             .WriteTo.Elasticsearch(new ElasticsearchSinkOptions(client.Transport)
             {
@@ -76,12 +76,14 @@ try
         .AddElasticsearchConfiguration(builder.Configuration)
         .AddTagGenerationService(builder.Configuration)
         .AddUserModule()
-        .AddTagModule()
+        .AddTokenService()
+        .AddTagModule() 
         .AddCategoryModule()
         .AddVideoLogsModule()
         .AddVideoMetadataModule(builder.Configuration)
         .AddApiCoreServices()
         .AddJwtAuthentication(builder.Configuration)
+        .AddAuthorizationConfiguration()
         .AddHealthCheckServices();
 
     var app = builder.Build();
