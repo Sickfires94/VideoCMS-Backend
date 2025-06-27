@@ -5,43 +5,45 @@ erDiagram
         string userName
         string userPassword
         string userEmail
-        date userCreatedDate
-        date userUpdatedDate
+        string role
+        datetime userCreatedDate
+        datetime userUpdatedDate
     }
 
-    videoMetadata {
+    videoMetadatas {
         int videoId PK
         string videoName
         string videoDescription
         string videoUrl
         int categoryId FK
         int userId FK
-        date videoUploadDate
-        date videoUpdatedDate
+        datetime videoUploadDate
+        datetime videoUpdatedDate
     }
 
-    tagsVideoMetadata{
-        int tagId PK
-        int videoId PK
+    TagVideoMetadata {
+        int VideoMetadatavideoId PK
+        int videoTagstagId PK
     }
 
-    videoMetadata_changelog {
-        int videoId PK
-        date changeTime PK
-        string changeType
-        string previous_videoName
-        string updated_videoName
-        string previous_videoDescription
-        string updated_videoDescription
-        string previous_videoUrl
-        string updated_videoUrl
-        int previous_categoryId
-        int updated_categoryId
+    VideoMetadataChangeLogs {
+        int VideoId PK
+        datetime ChangeTime PK
+        string ChangeType
+        string PreviousVideoName
+        string UpdatedVideoName
+        string PreviousVideoDescription
+        string UpdatedVideoDescription
+        string PreviousVideoUrl
+        string UpdatedVideoUrl
+        int PreviousCategoryId
+        int UpdatedCategoryId
+        string UpdatedByUserName
     }
 
     categories {
         int categoryId PK
-        int categoryName
+        string categoryName
         int categoryParentId FK
     }
 
@@ -50,15 +52,9 @@ erDiagram
         string tagName
     }
 
-
-
-
-    users ||--o{ videoMetadata : uploads
-
-
-
-    videoMetadata }o--o{ tagsVideoMetadata : has
-    tagsVideoMetadata }o--o| tags: has 
-
-    videoMetadata }o--|| categories : contains
-    categories o|--o{ categories : has
+    users ||--o{ videoMetadatas : uploads
+    videoMetadatas }o--o{ TagVideoMetadata : has
+    TagVideoMetadata }o--|| tags : has
+    videoMetadatas }o--|| categories : belongs_to
+    categories o|--o{ categories : parent_of
+    videoMetadatas ||--o{ VideoMetadataChangeLogs : logs

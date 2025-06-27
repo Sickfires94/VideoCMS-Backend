@@ -22,5 +22,10 @@ namespace Backend.Repositories
                 .OrderBy(v => v.ChangeTime)
                 .ToListAsync();
         }
+
+        public Task LogChange(VideoMetadata video)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

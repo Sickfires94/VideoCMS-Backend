@@ -1,4 +1,5 @@
 ﻿using Backend.DTOs;
+using Backend.DTOs.ResponseDtos;
 using Backend.Services.Interfaces;
 using Backend.Services.VideoMetaDataServices.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -31,7 +32,7 @@ namespace Backend.Controllers.VideoControllers
             if (categoryName != null) query_result = await _searchService.SearchVideoMetadataWithCategory(query, categoryName);
             else query_result = await _searchService.SearchVideoMetadata(query); // Assuming a more generic search method now
 
-            SearchVideoMetadataResponse response = new(query_result);
+            SearchVideoMetadataResponse response = new SearchVideoMetadataResponse{items =  query_result};
 
             Debug.WriteLine("Response items count" + response.items.Count);
             return Ok(response);

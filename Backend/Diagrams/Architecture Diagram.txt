@@ -1,11 +1,43 @@
 ﻿flowchart
-  
-   subgraph Backend
-    subgraph .NET Backend 
 
-        Controllers
-        Services
-        Repositories
+  subgraph Backend
+    subgraph ".NET Backend"
+
+      %% Controllers
+      VideoMetadataController
+      VideoBlobController
+      CategoriesController
+      UsersController
+      TagsGenerationController
+      VideoMetadataSearchController
+
+      %% Services
+      VideoMetadataService
+      VideoMetaDataProducerService
+      IndexVideoMetadataService
+      VideoMetadataSearchService
+      VideoMetadataToIndexDtoParser
+      BlobVideoStorageService
+      TagService
+      CategoryService
+      UserService
+      GenerateTagsService
+      VideoMetadataAuditInterceptor
+
+      %% Repositories
+      VideoMetadataRepository
+      IndexVideoMetadataRepository
+      VideoMetadataSearchingRepository
+      CategoryRepository
+      TagRepository
+      UserRepository
+      VideoMetadata_changelogRepository
+
+      %% Other Hosted/Background Services
+      IndexVideoMetadataConsumerService
+      RabbitMqProducerService
+      RabbitMqTopologyInitializer
+
     end
 
     db[("SQL Server DB")]
@@ -13,33 +45,68 @@
     RabbitMQ
     blob[/"Azure Blob Storage"/]
     recommender["Python Tags Generation Service"]
-    
+
   end
 
-  
-  
-  subgraph Angular Frontend
+  subgraph "Angular Frontend"
     Models
-    Views 
+    Views
     VM["View Models"]
 
-    VM -- Updates --> Models 
+    VM -- Updates --> Models
     VM -- Renders --> Views
-    Models -- Requests data --> Controllers
+    Models -- Requests data --> VideoMetadataController
+    Models -- Requests data --> CategoriesController
+    Models -- Requests data --> UsersController
+    Models -- Requests data --> TagsGenerationController
+    Models -- Requests data --> VideoMetadataSearchController
     Models -- Uploads Video Chunks --> blob
-
   end
-  
 
-    Services -- Produces --> RabbitMQ
-    RabbitMQ -- Consumes --> Services
+  %% Controller to Service
+  VideoMetadataController --> VideoMetadataService
+  VideoBlobController --> BlobVideoStorageService
+  CategoriesController --> CategoryService
+  UsersController --> UserService
+  TagsGenerationController --> GenerateTagsService
+  VideoMetadataSearchController --> VideoMetadataSearchService
 
+  %% Service to Repository
+  VideoMetadataService --> VideoMetadataRepository
+  VideoMetadataService --> VideoMetaDataProducerService
+  VideoMetaDataProducerService --> RabbitMqProducerService
+  VideoMetadataSearchService --> VideoMetadataSearchingRepository
+  CategoryService --> CategoryRepository
+  TagService --> TagRepository
+  UserService --> UserRepository
 
-    Controllers --> Services
-    Services --> Repositories
+  %% Repositories to Data Stores
+  VideoMetadataRepository --> db
+  IndexVideoMetadataRepository --> es
+  VideoMetadataSearchingRepository --> es
+  CategoryRepository --> db
+  TagRepository --> db
+  UserRepository --> db
+  VideoMetadata_changelogRepository --> db
+  BlobVideoStorageService --> blob
 
-    Repositories --> db
-    Repositories --> es
-    Repositories --> blob
-    Services -- REST API --> recommender 
+  %% Services and Hosted Services
+  RabbitMqProducerService -- Produces --> RabbitMQ
+  IndexVideoMetadataConsumerService -- Consumes --> RabbitMQ
+  IndexVideoMetadataConsumerService --> IndexVideoMetadataService
+  IndexVideoMetadataService --> IndexVideoMetadataRepository
+  RabbitMqTopologyInitializer --> RabbitMQ
 
+  %% Audit Interceptor
+  VideoMetadataAuditInterceptor -.-> VideoMetadataRepository
+
+  %% Tag Generation
+  GenerateTagsService -- REST API --> recommender
+
+  %% Misc
+  VideoMetadataToIndexDtoParser -.-> IndexVideoMetadataService
+
+%%   %% Notes for clarity
+%%   note right of VideoMetadataAuditInterceptor: EF Core SaveChangesInterceptor for audit logging
+%%   note right of IndexVideoMetadataConsumerService: HostedService for async indexing
+%%   note right of RabbitMqProducerService: Used by VideoMetaDataProducerService

@@ -22,11 +22,12 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
+
+ // Setup Serilog with Elastic Search Sink
 try
 {
     Log.Information("Starting web host");
 
-    // 👇 Final Serilog setup with Elastic sink (correct usage for Elastic.Serilog.Sinks)
     builder.Host.UseSerilog((context, services, config) =>
     {
         var elasticConfig = context.Configuration
@@ -39,29 +40,50 @@ try
 
         var client = new Elastic.Clients.Elasticsearch.ElasticsearchClient(connectionSettings);
 
-        config
-            .MinimumLevel.Warning()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            // .Enrich.FromLogContext()
-            // .Enrich.WithElasticApmCorrelationInfo()
-            .WriteTo.Console(new EcsTextFormatter())
-            .WriteTo.Elasticsearch(new ElasticsearchSinkOptions(client.Transport)
+        
+        {
+
+            int LogConnectionRetries = 0;
+            while (LogConnectionRetries < 5)
             {
-                DataStream = new DataStreamName("logs", "videocms"),
-                BootstrapMethod = BootstrapMethod.Failure,
-                TextFormatting = new EcsTextFormatterConfiguration<LogEventEcsDocument>
+                try
                 {
-                    MapCustom = (e, _) => e
-                },
-                ConfigureChannel = channelOpts =>
-                {
-                    channelOpts.BufferOptions = new BufferOptions
-                    {
-                        ExportMaxConcurrency = 4
-                    };
+                    config
+                        .MinimumLevel.Information()
+                        .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                        .Enrich.FromLogContext()
+                        .Enrich.WithElasticApmCorrelationInfo()
+                        .WriteTo.Console(new EcsTextFormatter())
+                        .WriteTo.Elasticsearch(new ElasticsearchSinkOptions(client.Transport)
+                        {
+                            DataStream = new DataStreamName("logs", "videocms"),
+                            BootstrapMethod = BootstrapMethod.Failure,
+                            TextFormatting = new EcsTextFormatterConfiguration<LogEventEcsDocument>
+                            {
+                                MapCustom = (e, _) => e
+                            },
+                            ConfigureChannel = channelOpts =>
+                            {
+                                channelOpts.BufferOptions = new BufferOptions
+                                {
+                                    ExportMaxConcurrency = 4
+                                };
+                            }
+                        });
+                    break;
                 }
-            });
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex, "Failed to configure Elasticsearch sink, Connection Attempt: " + LogConnectionRetries);
+                    // Thread.Sleep(5000);
+                    LogConnectionRetries++;
+                }
+            }
+        }
+        
     });
+
+    Debug.WriteLine("Serilog setup Successfully");
 
     Serilog.Debugging.SelfLog.Enable(msg => Debug.WriteLine(msg));
 
@@ -75,6 +97,7 @@ try
         .AddAzureBlobStorageConfiguration(builder.Configuration)
         .AddElasticsearchConfiguration(builder.Configuration)
         .AddTagGenerationService(builder.Configuration)
+        .AddMapperServices()
         .AddUserModule()
         .AddTokenService()
         .AddTagModule() 
@@ -88,13 +111,6 @@ try
 
     var app = builder.Build();
 
-    // Test Elasticsearch connection (optional)
-    var httpClient = new HttpClient();
-    var pingResult = await httpClient.GetAsync("http://localhost:9200");
-    var json = await pingResult.Content.ReadAsStringAsync();
-    Console.WriteLine("Elasticsearch Ping: " + json);
-
-    Log.Information("Test log to Elasticsearch");
 
     // ─────────────────────────────────────────────────────────────
     app.UseSwaggerDocumentation(app.Environment);

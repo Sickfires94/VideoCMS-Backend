@@ -1,6 +1,7 @@
 ﻿using Backend.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using System.Diagnostics;
 using System.Security.Claims;
 
 namespace Backend.Interceptors
@@ -9,11 +10,14 @@ namespace Backend.Interceptors
     {
         // If you need to access HttpContext (for current user), inject IHttpContextAccessor
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<VideoMetadataAuditInterceptor> _logger;
 
-        public VideoMetadataAuditInterceptor(IHttpContextAccessor httpContextAccessor = null)
+        public VideoMetadataAuditInterceptor(IHttpContextAccessor httpContextAccessor = null, ILogger<VideoMetadataAuditInterceptor> logger = null)
         {
             _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
+
 
         public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
         {
@@ -29,19 +33,27 @@ namespace Backend.Interceptors
 
         private void LogChanges(DbContext? context)
         {
+
+            Debug.WriteLine("Logging Changes");
             if (context == null) return;
 
             var auditEntries = new List<VideoMetadataChangeLog>();
-            // var currentUserId = GetCurrentUserId(); // Implement this based on your authentication
-            var currentUserName = GetCurrentUserName(); // Implement this based on your authentication
+            var currentUserName = GetCurrentUserName();
+
+
 
             foreach (var entry in context.ChangeTracker.Entries<VideoMetadata>())
             {
-                if (entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+               
+
+                _logger.LogInformation("Entry: {entry}", entry);    
+
+                if (entry.State == EntityState.Detached || entry.State == EntityState.Unchanged || !(entry is VideoMetadata))
                 {
                     continue;
                 }
 
+                
                 var auditEntry = new VideoMetadataChangeLog
                 {
                     VideoId = (int)entry.Property("videoId").CurrentValue, // Assuming videoId is set for all states
@@ -56,7 +68,7 @@ namespace Backend.Interceptors
                         auditEntry.ChangeType = "Insert";
                         auditEntry.UpdatedVideoName = (string?)entry.Property("videoName").CurrentValue;
                         auditEntry.UpdatedVideoDescription = (string?)entry.Property("videoDescription").CurrentValue;
-                        auditEntry.UpdatedVideoUrl = (string?)entry.Property("videoUrl").CurrentValue; // Assuming VideoUrl exists
+                        auditEntry.UpdatedVideoUrl = (string?)entry.Property("videoUrl").CurrentValue;
                         auditEntry.UpdatedCategoryId = (int?)entry.Property("categoryId").CurrentValue;
                         break;
 
@@ -94,7 +106,6 @@ namespace Backend.Interceptors
 
                     case EntityState.Deleted:
                         auditEntry.ChangeType = "Delete";
-                        // When deleting, original values are available
                         auditEntry.VideoId = (int)entry.Property("videoId").OriginalValue; // Use original ID for deleted
                         auditEntry.PreviousVideoName = (string?)entry.Property("videoName").OriginalValue;
                         auditEntry.PreviousVideoDescription = (string?)entry.Property("videoDescription").OriginalValue;

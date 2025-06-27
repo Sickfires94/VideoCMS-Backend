@@ -1,9 +1,12 @@
 ﻿using Backend.DTOs;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
+using Backend.Services.Interfaces;
 using Backend.Services.RabbitMq;
 using Backend.Services.VideoMetaDataServices.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace Backend.Services.VideoMetaDataServices
 {
@@ -11,14 +14,23 @@ namespace Backend.Services.VideoMetaDataServices
     {
         private readonly IVideoMetadataRepository _videoMetadataRepository;
         private readonly IVideoMetaDataProducerService _producerService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<VideoMetadataService> _logger;
+        private readonly IVideoMetadata_changeLogService _videoMetadataChangeLogService;
 
-        // [Authorize(Policy = "LoggedIn")]
 
-        public VideoMetadataService(IVideoMetadataRepository videoMetadataRepository, IVideoMetaDataProducerService videoMetadataProducerService)
+        public VideoMetadataService(
+            IVideoMetadataRepository videoMetadataRepository, 
+            IVideoMetaDataProducerService videoMetadataProducerService, 
+            IHttpContextAccessor httpContextAccessor, 
+            ILogger<VideoMetadataService> logger, 
+            IVideoMetadata_changeLogService videoMetadata_changeLogService)
         {
             _videoMetadataRepository = videoMetadataRepository;
             _producerService = videoMetadataProducerService;
-
+            _httpContextAccessor = httpContextAccessor;
+            _videoMetadataChangeLogService = videoMetadata_changeLogService;
+            _logger = logger;
         }
         public async Task<VideoMetadata> addVideoMetadata(VideoMetadata videoMetadata)
         {
@@ -41,7 +53,12 @@ namespace Backend.Services.VideoMetaDataServices
 
         public async Task deleteVideoMetadata(int id)
         {
+
+            if (!await IsOwnerAsync(id))
+                throw new UnauthorizedAccessException("You do not have permission to delete this video.");
+
             await _videoMetadataRepository.deleteVideoMetadata(id);
+           //  await _indexVideoMetadataRepository.deleteVideoMetadataFromIndex(id); replace with consumer
         }
 
         public async Task<List<VideoMetadata>> getAllVideoMetadata()
@@ -72,7 +89,30 @@ namespace Backend.Services.VideoMetaDataServices
 
         public async Task<VideoMetadata> updateVideoMetadata(int id, VideoMetadata video)
         {
-            return await _videoMetadataRepository.updateVideoMetadata(id, video);
+
+            if (!await IsOwnerAsync(id))
+                throw new UnauthorizedAccessException("You do not have permission to delete this video.");
+
+            VideoMetadata updatedVideo = await _videoMetadataRepository.updateVideoMetadata(id, video);
+            Debug.WriteLine("user as service: " + updatedVideo.user.userName);
+            return updatedVideo;
+        }
+
+        private string? GetCurrentUserId()
+        {
+            return _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? _httpContextAccessor.HttpContext?.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        }
+
+        private async Task<bool> IsOwnerAsync(int videoId)
+        {
+            var video = await _videoMetadataRepository.getVideoMetadataById(videoId);
+            var currentUserId = GetCurrentUserId();
+
+            if (video == null || string.IsNullOrEmpty(currentUserId))
+                return false;
+
+            return video.userId == Int32.Parse(currentUserId); ;
         }
     }
 }

@@ -12,18 +12,18 @@ namespace Backend.DTOs
         public string? videoDescription { get; set; }
 
         [Required]
-        // [Url]
+        [Url]
         public string videoUrl { get; set; }
 
 
         public ICollection<Tag>? videoTags { get; set; } = new List<Tag>()!;
-        
+
         public int? categoryId { get; set; }
         public Category? category { get; set; } = default!;
 
         [Required]
         public int userId { get; set; }
-        public User? user { get; set; }
+        public User user { get; set; }
 
         public DateTime videoUploadDate { get; set; }
         public DateTime videoUpdatedDate { get; set; }

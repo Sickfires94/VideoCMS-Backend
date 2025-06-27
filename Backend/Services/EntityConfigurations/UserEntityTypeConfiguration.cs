@@ -13,6 +13,13 @@ namespace Backend.Services.Configurations
             builder.Property(u => u.userId)
                 .ValueGeneratedOnAdd();
 
+            builder.HasIndex(u => u.userId)
+                .IsUnique();
+
+            builder.HasAlternateKey(u => u.userName);
+
+            builder.HasAlternateKey(u => u.userEmail);
+
             builder.Property(u => u.userCreatedDate)
             .HasDefaultValueSql("getdate()");
 

@@ -27,13 +27,6 @@ namespace Backend.Services.VideoMetaDataServices
 
         public async Task<List<VideoMetadataIndexDTO>> SearchVideoMetadataWithCategory(string query, string categoryName)
         {
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                // Return an empty list if the query is empty or just whitespace.
-                // This is generally better than throwing an exception for an empty search.
-                return new List<VideoMetadataIndexDTO>();
-            }
-
             Category category = await _categoryService.GetCategoryByNameAsync(categoryName);
 
             if (category == null) return await _videoMetadataSearchingRepository.SearchByGeneralQueryAsync(query, null);
@@ -50,14 +43,6 @@ namespace Backend.Services.VideoMetaDataServices
 
         public async Task<List<VideoMetadataIndexDTO>> SearchVideoMetadata(string query)
         {
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                // Return an empty list if the query is empty or just whitespace.
-                // This is generally better than throwing an exception for an empty search.
-                return new List<VideoMetadataIndexDTO>();
-            }
-
-
             // Delegate the generic search to the repository
             var results = await _videoMetadataSearchingRepository.SearchByGeneralQueryAsync(query, null);
 

@@ -1,7 +1,8 @@
 ﻿using Backend.DTOs;
 using Backend.Repositories.Interface;
-using Microsoft.EntityFrameworkCore;
 using Backend.Services;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace Backend.Repositories
 {
@@ -23,8 +24,10 @@ namespace Backend.Repositories
         {
             user.userCreatedDate = DateTime.UtcNow; // Set creation date
             user.userUpdatedDate = DateTime.UtcNow; // Set initial update date
+            Debug.WriteLine("role before saving: " + user.role);
             _context.users.Add(user);
             await _context.SaveChangesAsync(); // Persist changes to the database
+            Debug.WriteLine("role after saving: " + user.role);
             return user;
         }
 

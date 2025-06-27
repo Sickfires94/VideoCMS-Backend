@@ -4,6 +4,7 @@ using Backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Backend.Migrations
 {
     [DbContext(typeof(VideoManagementApplicationContext))]
-    partial class VideoManagementApplicationContextModelSnapshot : ModelSnapshot
+    [Migration("20250627063859_makeUserNaemUnique")]
+    partial class makeUserNaemUnique
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -32,14 +35,12 @@ namespace Backend.Migrations
 
                     b.Property<string>("categoryName")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("categoryParentId")
                         .HasColumnType("int");
 
                     b.HasKey("categoryId");
-
-                    b.HasAlternateKey("categoryName");
 
                     b.HasIndex("categoryParentId");
 

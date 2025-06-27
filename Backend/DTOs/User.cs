@@ -6,7 +6,9 @@ namespace Backend.DTOs
     {
         public int userId {  get; set; }
 
-        public string? userName { get; set; }
+        [Required]
+
+        public string userName { get; set; }
 
         [Required]
         public string userPassword { get; set; }
@@ -14,10 +16,16 @@ namespace Backend.DTOs
         [Required]
         public string userEmail { get; set; }
 
-        [Required]
-        public string role { get; set; } = "user";
+        private string _role = "user";
 
-       public DateTime userCreatedDate { get; set; }
+        [Required]
+        public string role
+        {
+            get => _role;
+            set => _role = string.IsNullOrWhiteSpace(value) ? "user" : value;
+        }
+
+        public DateTime userCreatedDate { get; set; }
         public DateTime userUpdatedDate { get; set; }
 
     }

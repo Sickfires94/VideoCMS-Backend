@@ -18,11 +18,13 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
 {
     private readonly ElasticsearchClient _client;
     private readonly VideoMetadataIndexingOptions _videoMetadataIndexingOptions;
+    private readonly ILogger<IVideoMetadataSearchingRepository> _logger;
 
-    public VideoMetadataSearchingRepository(ElasticsearchClient client, IOptions<VideoMetadataIndexingOptions> videoMetadataIndexingOptions)
+    public VideoMetadataSearchingRepository(ElasticsearchClient client, IOptions<VideoMetadataIndexingOptions> videoMetadataIndexingOptions, ILogger<IVideoMetadataSearchingRepository> logger)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _videoMetadataIndexingOptions = videoMetadataIndexingOptions.Value;
+        _logger = logger;
 
         CreateIndexWithOnlyDynamicStringMappingAsync(_videoMetadataIndexingOptions.IndexName);
 
@@ -82,83 +84,125 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
         );
 
         if (createIndexResponse.IsValidResponse)
-        { // Logging here
+        {
+            _logger.LogInformation("Index Successfully created");
         }
         else
-        { // logging here
+        {
+            _logger.LogError("Index Creation Failed");
         }
         return createIndexResponse.IsValidResponse;
     }
 
 
-    public async Task<List<VideoMetadataIndexDTO>> SearchByGeneralQueryAsync(string query, List<string>? categories)
+    public async Task<List<VideoMetadataIndexDTO>> SearchByGeneralQueryAsync(string? query, List<string>? categories)
     {
-        if (string.IsNullOrWhiteSpace(query))
-            return new List<VideoMetadataIndexDTO>();
+        bool hasQuery = !string.IsNullOrWhiteSpace(query);
+        bool hasCategories = categories != null && categories.Any();
 
-        string lowerCaseQuery = query.ToLowerInvariant(); // Match analyzer behavior
+        Query finalQuery;
+
+        if (!hasQuery && !hasCategories)
+        {
+            // Return everything using a plain match_all
+            finalQuery = new MatchAllQuery();
+        }
+        else if (hasQuery && !hasCategories)
+        {
+            // Just the text query
+            finalQuery = new MultiMatchQuery
+            {
+                Query = query,
+                Fields = new Field[] { "videoName^2", "videoDescription", "videoTagNames" },
+                Fuzziness = new Fuzziness("AUTO"),
+                Lenient = true
+            };
+        }
+        else if (!hasQuery && hasCategories)
+        {
+            // Just category filter
+            finalQuery = new BoolQuery
+            {
+                Filter = new Query[]
+                {
+                new TermsQuery
+                {
+                    Field = "categoryName.keyword",
+                    Terms = new TermsQueryField(categories.Select(FieldValue.String).ToList())
+                }
+                }
+            };
+        }
+        else
+        {
+            // Both query and category filter
+            finalQuery = new BoolQuery
+            {
+                Must = new Query[]
+                {
+                new MultiMatchQuery
+                {
+                    Query = query,
+                    Fields = new Field[] { "videoName^2", "videoDescription", "videoTagNames" },
+                    Fuzziness = new Fuzziness("AUTO"),
+                    Lenient = true
+                }
+                },
+                Filter = new Query[]
+                {
+                new TermsQuery
+                {
+                    Field = "categoryName.keyword",
+                    Terms = new TermsQueryField(categories.Select(FieldValue.String).ToList())
+                }
+                }
+            };
+        }
 
         var searchRequest = new SearchRequest<VideoMetadataIndexDTO>(_videoMetadataIndexingOptions.IndexName)
         {
             Size = 20,
-            TrackTotalHits = true, // Consider enabling for proper pagination
-            Query = new BoolQuery
+            TrackTotalHits = true,
+            Query = finalQuery
+        };
+
+        // 🔽 Only add sorting if query is empty (to sort by newest)
+        if (!hasQuery)
+        {
+            searchRequest.Sort = new List<SortOptions>
+        {
+            new SortOptions
             {
-                Should = new List<Query>
-            {
-                new MultiMatchQuery
+                Field = new FieldSort
                 {
-                    Query = lowerCaseQuery, // Use lowercased query
-                    Fields = new Field[]
-                    {
-                        new Field("videoName^2"),
-                        new Field("videoDescription"),
-                        new Field("videoTagNames")
-                    },
-                    // Fuzziness can still be useful for typos, but n-grams handle partials.
-                    // You might adjust or remove fuzziness depending on desired behavior with n-grams.
-                    Fuzziness = "AUTO",
-                    Lenient = true
+                    Field = "videoUploadDate",
+                    Order = SortOrder.Desc
                 }
-                // No need for separate PhrasePrefix or Wildcard queries for general partial matching
-                // if the fields are indexed with n-grams.
-            },
-                MinimumShouldMatch = 1
             }
         };
+        }
 
         var searchResponse = await _client.SearchAsync<VideoMetadataIndexDTO>(searchRequest);
 
+        // --- Debugging ---
         Debug.WriteLine($"Search Query: {query}");
         Debug.WriteLine($"Index Name: {_videoMetadataIndexingOptions.IndexName}");
-        Debug.WriteLine($"Response IsValidResponse: {searchResponse.IsValidResponse}");
-        Debug.WriteLine($"Response DebugInformation: {searchResponse.DebugInformation}"); // Crucial for errors!
-        Debug.WriteLine($"Response Documents count: {(searchResponse.Documents != null ? searchResponse.Documents.Count : 0)}");
-        Debug.WriteLine($"Response TotalHits: {(searchResponse.Total > 0 ? searchResponse.Total : 0)}"); // Check total hits too
-
+        Debug.WriteLine($"Response IsValid: {searchResponse.IsValidResponse}");
+        Debug.WriteLine($"Response DebugInformation: {searchResponse.DebugInformation}");
+        Debug.WriteLine($"Response Documents count: {searchResponse.Documents.Count}");
+        Debug.WriteLine($"Response TotalHits: {searchResponse.Total}");
+        // --- End Debugging ---
 
         if (!searchResponse.IsValidResponse || searchResponse.Documents is null)
         {
-            Debug.WriteLine("Invalid Response: " + searchResponse.IsValidResponse);
-            Debug.WriteLine("Debug : " + searchResponse.DebugInformation);
+            Debug.WriteLine("Invalid Response: " + searchResponse.DebugInformation);
             return new List<VideoMetadataIndexDTO>();
         }
 
-
-        List<VideoMetadataIndexDTO> videos = searchResponse.Documents.ToList();
-        if (categories.IsNullOrEmpty()) return videos;
-
-        List<VideoMetadataIndexDTO> filteredVideos = new List<VideoMetadataIndexDTO>();
-
-
-        for (int i = 0; i < videos.Count(); i++)
-        {
-            if (categories.Contains(videos[i].categoryName)) filteredVideos.Add(videos[i]);
-        }
-
-
-        return filteredVideos;
+        return searchResponse.Documents.ToList();
     }
+
+
 
 
     public async Task<List<string>> GetSuggestionsAsync(string query)
@@ -263,5 +307,5 @@ public class VideoMetadataSearchingRepository : IVideoMetadataSearchingRepositor
         );
     }
 
-
+ 
 }

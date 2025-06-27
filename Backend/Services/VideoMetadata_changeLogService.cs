@@ -17,5 +17,10 @@ namespace Backend.Services
         {
             return _repository.getLogsByVideoId(videoId);
         }
+
+        public Task LogChange(VideoMetadata video)
+        {
+            return _repository.LogChange(video);
+        }
     }
 }

@@ -13,6 +13,11 @@ namespace Backend.Services.Configurations
             builder.HasKey(t => t.tagId);
             builder.Property(t => t.tagId)
                 .ValueGeneratedOnAdd();
+
+            builder.HasIndex(t => t.tagName)
+                .IsUnique();
+
+            builder.HasAlternateKey(t => t.tagName);
         }
     }
 }

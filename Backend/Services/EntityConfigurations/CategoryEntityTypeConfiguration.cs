@@ -13,6 +13,14 @@ namespace Backend.Services.Configurations
             builder.Property(c => c.categoryId)
                 .ValueGeneratedOnAdd();
 
+            builder.HasAlternateKey(c => c.categoryName);
+
+            builder.HasIndex(c => c.categoryParentId)
+                .IsClustered();
+
+            builder.HasIndex(c => c.categoryName)
+                .IsUnique();
+
             builder.HasOne(c => c.categoryParent)
                .WithMany(c => c.children)
                .IsRequired(false)

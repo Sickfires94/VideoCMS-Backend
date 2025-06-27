@@ -8,6 +8,8 @@ using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services;
 using Backend.Services.Interface;
 using Backend.Services.Interfaces; // For IBlobStorageService, etc.
+using Backend.Services.Mappers;
+using Backend.Services.Mappers.Interfaces;
 using Backend.Services.RabbitMq;
 using Backend.Services.RabbitMq.Interfaces;
 using Backend.Services.VideoMetaDataServices;
@@ -28,9 +30,6 @@ namespace Backend.Configurations
 {
     public static class ServiceCollectionExtensions
     {
-        /// <summary>
-        /// Adds database context configuration and SQL Server options.
-        /// </summary>
         public static IServiceCollection AddDatabaseConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddHttpContextAccessor();
@@ -57,9 +56,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Adds services and repositories related to User management.
-        /// </summary>
         public static IServiceCollection AddUserModule(this IServiceCollection services)
         {
             services.AddScoped<IUserRepository, UserRepository>();
@@ -67,9 +63,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Adds services and repositories related to Tag management.
-        /// </summary>
         public static IServiceCollection AddTagModule(this IServiceCollection services)
         {
             services.AddScoped<ITagRepository, TagRepository>();
@@ -77,9 +70,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Adds services and repositories related to Category management.
-        /// </summary>
         public static IServiceCollection AddCategoryModule(this IServiceCollection services)
         {
             services.AddScoped<ICategoryRepository, CategoryRepository>();
@@ -94,10 +84,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Configures CORS policy.
-        /// </summary>
-        /// <param name="policyName">The name of the CORS policy.</param>
         public static IServiceCollection AddCorsConfiguration(this IServiceCollection services, string policyName)
         {
             services.AddCors(options =>
@@ -113,9 +99,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Configures RabbitMQ connection and generic producer.
-        /// </summary>
         public static IServiceCollection AddRabbitMqConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<RabbitMqConfig>(configuration.GetSection("backend:RabbitMq"));
@@ -138,9 +121,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Adds configuration for Azure Blob Storage and its service.
-        /// </summary>
         public static IServiceCollection AddAzureBlobStorageConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<AzureStorageConfig>(configuration.GetSection("backend:AzureStorage"));
@@ -164,10 +144,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Adds configuration for Elasticsearch client.
-        /// WARNING: The ServerCertificateValidationCallback bypasses certificate validation. Do NOT use in production.
-        /// </summary>
         public static IServiceCollection AddElasticsearchConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<ElasticSearchCredentials>(configuration.GetSection("backend:ElasticSearch"));
@@ -190,15 +166,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Adds all services, repositories, and hosted services related to video metadata processing and search.
-        /// This includes:
-        /// - VideoMetadataRepository, IndexVideoMetadataRepository, VideoMetadataSearchingRepository
-        /// - VideoMetadataService, IndexVideoMetadataService, VideoMetadataSearchService
-        /// - VideoMetadataProducerService (for sending messages about video metadata)
-        /// - IndexVideoMetadataConsumerService (for consuming messages to index video metadata)
-        /// - RabbitMqTopologyInitializer (for setting up RabbitMQ topology specific to video metadata indexing)
-        /// </summary>
         public static IServiceCollection AddVideoMetadataModule(this IServiceCollection services, IConfiguration configuration)
         {
             // Configure options for video metadata indexing
@@ -239,9 +206,6 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Adds core API services like controllers, API explorer, and Swagger generation.
-        /// </summary>
         public static IServiceCollection AddApiCoreServices(this IServiceCollection services)
         {
             services.AddControllers();
@@ -250,18 +214,12 @@ namespace Backend.Configurations
             return services;
         }
 
-        /// <summary>
-        /// Configures JWT Bearer authentication and registers the TokenService.
-        /// </summary>
         public static IServiceCollection AddTokenService(this IServiceCollection services)
         {
             services.AddScoped<ITokenService, TokenService>(); // Register TokenService
             return services;
         }
 
-        /// <summary>
-        /// Configures JWT Bearer authentication.
-        /// </summary>
         public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<JwtConfig>(configuration.GetSection("backend:Jwt"));
@@ -315,7 +273,6 @@ namespace Backend.Configurations
 
             Debug.WriteLine($"[DEBUG] TagsGeneration:ApiUrl from configuration: {tagsApiUrl ?? "NULL or NOT FOUND"}");
 
-
             services.Configure<TagsGenerationConfig>(configuration.GetSection("backend:TagsGenerationConfig"));
 
             services.AddHttpClient<IGenerateTagsService, GenerateTagsService>((serviceProvider, client) =>
@@ -344,13 +301,16 @@ namespace Backend.Configurations
         
         }
 
-       
-        
-      
+       public static IServiceCollection AddMapperServices(this IServiceCollection services)
+        {
+            services.AddScoped<ICategoryMapperService, CategoryMapperService>();
+            services.AddScoped<ITagMapperService, TagMapperService>();
+            services.AddScoped<IUserMapperService, UserMapperService>();
+            services.AddScoped<IVideoMetadataMapperService, VideoMetadataMapperService>();
 
-        /// <summary>
-        /// Adds health check services.
-        /// </summary>
+            return services;
+        }
+        
         public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
         {
             services.AddHealthChecks()
