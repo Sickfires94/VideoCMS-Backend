@@ -31,7 +31,7 @@ namespace Backend.Services.Mappers
             string userName = entity.user?.userName ?? "";
 
             Debug.WriteLine("Category Id: " + entity.categoryId);
-            Debug.WriteLine("Category Name: " + entity.category);
+            Debug.WriteLine("Category entity null: " + entity.category == null);
 
             if (entity.category != null) 
                 category = _categoryMapperService.toResponse(entity.category);
@@ -47,7 +47,7 @@ namespace Backend.Services.Mappers
                 videoDescription = entity.videoDescription,
                 videoUrl = entity.videoUrl,
                 videoTags = tags,
-                category =category,
+                category = category,
                 userName = userName
             };
 
