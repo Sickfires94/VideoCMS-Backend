@@ -16,7 +16,6 @@ namespace Backend.DTOs
             this.categoryName = categoryName;
             this.userName = userName;
             this.videoUploadDate = videoUploadDate;
-            this.videoUpdatedDate = videoUpdatedDate;
            
         }
 

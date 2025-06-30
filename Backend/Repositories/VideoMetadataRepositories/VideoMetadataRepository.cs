@@ -18,13 +18,9 @@ namespace Backend.Repositories.VideoMetadataRepositories
 
         public async Task<VideoMetadata> addVideoMetadata(VideoMetadata videoMetadata)
         {
-            // Add the new VideoMetadata object
             await _context.videoMetadatas.AddAsync(videoMetadata);
             await _context.SaveChangesAsync();
 
-
-
-            // Return the fully loaded VideoMetadata
             return videoMetadata;
         }
 
@@ -35,7 +31,11 @@ namespace Backend.Repositories.VideoMetadataRepositories
 
         public async Task<List<VideoMetadata>> getAllVideoMetadata()
         {   
-            return await _context.videoMetadatas.ToListAsync();
+            return await _context.videoMetadatas
+                .Include(v => v.user)
+                .Include(v => v.videoTags)
+                .Include(v => v.category)
+                .ToListAsync();
         }
 
         public async Task<VideoMetadata?> getVideoMetadataById(int videoId)

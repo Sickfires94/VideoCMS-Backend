@@ -17,11 +17,6 @@ namespace Backend.Services
             _categoryRepository = categoryRepository;
         }
 
-        /// <summary>
-        /// Creates a new category after validating its uniqueness and parent existence.
-        /// </summary>
-        /// <param name="category">The Category DTO to create.</param>
-        /// <returns>The created Category if successful, otherwise null.</returns>
         public async Task<Category?> CreateCategoryAsync(Category category)
         {
             // 1. Validate Parent Category existence if a parentId is provided
@@ -48,41 +43,21 @@ namespace Backend.Services
             return createdCategory;
         }
 
-        /// <summary>
-        /// Retrieves a category by its ID.
-        /// </summary>
-        /// <param name="categoryId">The ID of the category.</param>
-        /// <returns>The Category DTO or null if not found.</returns>
         public async Task<Category?> GetCategoryByIdAsync(int categoryId)
         {
             return await _categoryRepository.GetByIdAsync(categoryId);
         }
 
-        /// <summary>
-        /// Retrieves all categories.
-        /// </summary>
-        /// <returns>An enumerable collection of all categories.</returns>
         public async Task<IEnumerable<Category>> GetAllCategoriesAsync()
         {
             return await _categoryRepository.GetAllAsync();
         }
 
-        /// <summary>
-        /// Retrieves all immediate children of a specified parent category.
-        /// </summary>
-        /// <param name="parentCategoryId">The ID of the parent category.</param>
-        /// <returns>An enumerable collection of immediate children.</returns>
         public async Task<IEnumerable<Category>> GetImmediateChildrenAsync(int parentCategoryId)
         {
             return await _categoryRepository.GetAllImmediateChildrenAsync(parentCategoryId);
         }
 
-        /// <summary>
-        /// Retrieves all descendant categories (children, grandchildren, etc.) of a given category.
-        /// This method leverages the repository's recursive fetching capability.
-        /// </summary>
-        /// <param name="categoryId">The ID of the starting category.</param>
-        /// <returns>An enumerable collection of all descendant categories.</returns>
         public async Task<IEnumerable<Category>> GetDescendantCategoriesAsync(int categoryId)
         {
             // Note: The CategoryRepository's GetAllChildrenAsync is already recursive.
@@ -91,21 +66,11 @@ namespace Backend.Services
             return await _categoryRepository.GetAllChildrenAndSelfAsync(categoryId);
         }
 
-        /// <summary>
-        /// Retrieves the hierarchical path from the root to the given category.
-        /// </summary>
-        /// <param name="categoryId">The ID of the category.</param>
-        /// <returns>An enumerable collection of Category DTOs representing the hierarchy.</returns>
-        public async Task<IEnumerable<Category>> GetCategoryHierarchyAsync(int categoryId)
+       public async Task<IEnumerable<Category>> GetCategoryHierarchyAsync(int categoryId)
         {
             return await _categoryRepository.GetAllParentsHierarchyAsync(categoryId);
         }
 
-        /// <summary>
-        /// Updates an existing category after validating its uniqueness and parent existence.
-        /// </summary>
-        /// <param name="category">The Category DTO with updated values.</param>
-        /// <returns>The updated Category if successful, otherwise null.</returns>
         public async Task<Category?> UpdateCategoryAsync(Category category)
         {
             var existingCategory = await _categoryRepository.GetByIdAsync(category.categoryId);
@@ -148,11 +113,6 @@ namespace Backend.Services
             return existingCategory;
         }
 
-        /// <summary>
-        /// Deletes a category by its ID, but only if it has no children.
-        /// </summary>
-        /// <param name="categoryId">The ID of the category to delete.</param>
-        /// <returns>True if deleted, false if not found or has children.</returns>
         public async Task<bool> DeleteCategoryAsync(int categoryId)
         {
             var categoryToDelete = await _categoryRepository.GetByIdAsync(categoryId);
@@ -175,15 +135,6 @@ namespace Backend.Services
             return true;
         }
 
-        /// <summary>
-        /// Checks if a category name is unique within its parent scope.
-        /// If parentId is null, it checks for uniqueness among root categories.
-        /// If excludeCategoryId is provided, it's used to exclude the current category during update checks.
-        /// </summary>
-        /// <param name="categoryName">The name to check.</param>
-        /// <param name="parentId">The parent ID (null for root).</param>
-        /// <param name="excludeCategoryId">ID of category to exclude from check.</param>
-        /// <returns>True if unique, false otherwise.</returns>
         public async Task<bool> IsCategoryNameUniqueAsync(string categoryName, int? parentId, int? excludeCategoryId = null)
         {
             // Get all categories that match the name (case-insensitive)
@@ -214,6 +165,7 @@ namespace Backend.Services
         {
             return await _categoryRepository.GetAllCategoriesWithChildren();
         }
+
 
     }
 }

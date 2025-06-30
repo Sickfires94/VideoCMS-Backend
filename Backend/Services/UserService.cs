@@ -38,7 +38,7 @@ namespace Backend.Services
                     userEmail = storedUser.userEmail,
                     userCreatedDate = storedUser.userCreatedDate,
                     role = storedUser.role, // Populate the Role from the storedUser entity
-                    Token = token
+                    token = token
                 };
             }
             return null; // Authentication failed

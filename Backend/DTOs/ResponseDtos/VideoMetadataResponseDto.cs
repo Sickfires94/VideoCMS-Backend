@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Backend.DTOs.ResponseDtos.Categories;
+using System.ComponentModel.DataAnnotations;
 
 namespace Backend.DTOs.ResponseDtos
 {

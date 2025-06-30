@@ -2,12 +2,12 @@
 using Backend.Configurations.DataConfigs;
 using Backend.Interceptors;
 using Backend.Repositories;
-using Backend.Repositories.Interface; // Assuming ITagRepository is here, from previous context
+using Backend.Repositories.Interface;
 using Backend.Repositories.VideoMetadataRepositories;
 using Backend.Repositories.VideoMetadataRepositories.Interfaces;
 using Backend.Services;
 using Backend.Services.Interface;
-using Backend.Services.Interfaces; // For IBlobStorageService, etc.
+using Backend.Services.Interfaces;
 using Backend.Services.Mappers;
 using Backend.Services.Mappers.Interfaces;
 using Backend.Services.RabbitMq;
@@ -110,8 +110,6 @@ namespace Backend.Configurations
                 factory.TopologyRecoveryEnabled = true;
 
                 var config = sp.GetRequiredService<IOptions<RabbitMqConfig>>().Value;
-                // Note: CreateConnectionAsync().GetAwaiter().GetResult() is blocking.
-                // For a more robust async setup, consider an IHostedService that manages the connection.
                 return new RabbitMqConnection(factory.CreateConnectionAsync().GetAwaiter().GetResult());
             });
 
@@ -158,7 +156,7 @@ namespace Backend.Configurations
                 var settings = new ElasticsearchClientSettings(new Uri(config.ConnectionURL))
                     .Authentication(new BasicAuthentication(config.username, config.password))
                     .ServerCertificateValidationCallback(
-                        (sender, certificate, chain, sslPolicyErrors) => true // WARNING: Do NOT use this in production.
+                        (sender, certificate, chain, sslPolicyErrors) => true
                     );
 
                 return new ElasticsearchClient(settings);
@@ -182,6 +180,7 @@ namespace Backend.Configurations
             services.AddScoped<IIndexVideoMetadataService, IndexVideoMetadataService>();
             services.AddScoped<IVideoMetadataSearchService, VideoMetadataSearchService>();
             services.AddScoped<IVideoMetadataToIndexDtoParser, VideoMetadataToIndexDtoParser>();
+            services.AddScoped<IPopulateVideoMetadataService, PopulateVideoMetadataService>();
 
             // Video metadata producer service
             services.AddSingleton<IVideoMetaDataProducerService>(provider =>
@@ -200,7 +199,7 @@ namespace Backend.Configurations
                 return new IndexVideoMetadataConsumerService(connection, scopeFactory, settings);
             });
 
-            // Hosted service for initializing RabbitMQ topology specific to video metadata
+         
             services.AddHostedService<RabbitMqTopologyInitializer>();
 
             return services;
@@ -217,6 +216,7 @@ namespace Backend.Configurations
         public static IServiceCollection AddTokenService(this IServiceCollection services)
         {
             services.AddScoped<ITokenService, TokenService>(); // Register TokenService
+            services.AddScoped<ITokenClaimsAccessor, TokenClaimsAccessor>(); // Register service to access token values (claims)
             return services;
         }
 
@@ -239,12 +239,12 @@ namespace Backend.Configurations
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    ValidateIssuer = false,               // Set to false as per request
-                    ValidateAudience = false,             // Set to false as per request
-                    ValidateLifetime = true,              // Keep true for security
-                    ValidateIssuerSigningKey = true,      // Keep true for security
+                    ValidateIssuer = false,               
+                    ValidateAudience = false,             
+                    ValidateLifetime = true,             
+                    ValidateIssuerSigningKey = true,      
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.key)),
-                    ClockSkew = TimeSpan.Zero             // Good practice for strict expiry
+                    ClockSkew = TimeSpan.Zero             
                 };
             });
 
@@ -277,19 +277,11 @@ namespace Backend.Configurations
 
             services.AddHttpClient<IGenerateTagsService, GenerateTagsService>((serviceProvider, client) =>
             {
-                // If your TagsGenerationConfig.ApiUrl is the FULL URL (e.g., "https://api.example.com/generate"),
-                // then HttpClient's BaseAddress should generally NOT be set here,
-                // as the service will use the full URL in its GetAsync call.
-                // If TagsGenerationConfig.ApiUrl is just the base (e.g., "https://api.example.com/"),
-                // then uncomment the client.BaseAddress = baseUri; part.
-
                 client.DefaultRequestHeaders.Accept.Clear();
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.Timeout = TimeSpan.FromSeconds(20);
             })
             .ConfigurePrimaryHttpMessageHandler(() => {
-                // Optional: If you need to ignore SSL errors for development/testing,
-                // DO NOT USE IN PRODUCTION
                 return new HttpClientHandler
                 {
                     ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator

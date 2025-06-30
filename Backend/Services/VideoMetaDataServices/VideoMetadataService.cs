@@ -4,6 +4,7 @@ using Backend.Services.Interfaces;
 using Backend.Services.RabbitMq;
 using Backend.Services.VideoMetaDataServices.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration.UserSecrets;
 using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -14,23 +15,27 @@ namespace Backend.Services.VideoMetaDataServices
     {
         private readonly IVideoMetadataRepository _videoMetadataRepository;
         private readonly IVideoMetaDataProducerService _producerService;
-        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<VideoMetadataService> _logger;
         private readonly IVideoMetadata_changeLogService _videoMetadataChangeLogService;
+        private readonly IPopulateVideoMetadataService _populateVideoMetadataService;
+        private readonly ITokenClaimsAccessor _tokenClaimsAccessor;
 
 
         public VideoMetadataService(
             IVideoMetadataRepository videoMetadataRepository, 
-            IVideoMetaDataProducerService videoMetadataProducerService, 
-            IHttpContextAccessor httpContextAccessor, 
-            ILogger<VideoMetadataService> logger, 
-            IVideoMetadata_changeLogService videoMetadata_changeLogService)
+            IVideoMetaDataProducerService videoMetadataProducerService,
+            ILogger<VideoMetadataService> logger,
+            IVideoMetadata_changeLogService videoMetadata_changeLogService,
+            IPopulateVideoMetadataService populateVideoMetadataService,
+            ITokenClaimsAccessor tokenClaimsAccessor
+            )
         {
             _videoMetadataRepository = videoMetadataRepository;
             _producerService = videoMetadataProducerService;
-            _httpContextAccessor = httpContextAccessor;
             _videoMetadataChangeLogService = videoMetadata_changeLogService;
             _logger = logger;
+            _populateVideoMetadataService = populateVideoMetadataService;
+            _tokenClaimsAccessor = tokenClaimsAccessor;
         }
         public async Task<VideoMetadata> addVideoMetadata(VideoMetadata videoMetadata)
         {
@@ -39,13 +44,20 @@ namespace Backend.Services.VideoMetaDataServices
                 throw new ArgumentNullException(nameof(videoMetadata), "Video metadata cannot be null.");
             }
 
+            _logger.LogInformation($"Service: Added video metadata for videoId: {videoMetadata.videoId}.");
+
+            VideoMetadata video = await _populateVideoMetadataService.populate(videoMetadata);
+            
+            var userId = _tokenClaimsAccessor.getLoggedInUserId();
+
+            if (!userId.HasValue) throw new UnauthorizedAccessException(); // throw exception to catch in Controller
+
+            video.userId = userId.Value;
 
 
-            Console.WriteLine($"Service: Added video metadata for videoId: {videoMetadata.videoId}.");
 
-            VideoMetadata video = await _videoMetadataRepository.addVideoMetadata(videoMetadata);
+            await _videoMetadataRepository.addVideoMetadata(video);
 
-            Debug.WriteLine("Video Id to publish " + video.videoId);
 
             await _producerService.publishVideoMetaDataAsync(video);
             return video;
@@ -58,7 +70,9 @@ namespace Backend.Services.VideoMetaDataServices
                 throw new UnauthorizedAccessException("You do not have permission to delete this video.");
 
             await _videoMetadataRepository.deleteVideoMetadata(id);
-           //  await _indexVideoMetadataRepository.deleteVideoMetadataFromIndex(id); replace with consumer
+            
+            /// TODO Replace with Consumer
+            // await _indexVideoMetadataRepository.deleteVideoMetadataFromIndex(id); replace with consumer
         }
 
         public async Task<List<VideoMetadata>> getAllVideoMetadata()
@@ -93,26 +107,23 @@ namespace Backend.Services.VideoMetaDataServices
             if (!await IsOwnerAsync(id))
                 throw new UnauthorizedAccessException("You do not have permission to delete this video.");
 
-            VideoMetadata updatedVideo = await _videoMetadataRepository.updateVideoMetadata(id, video);
+            VideoMetadata updatedVideo = await _populateVideoMetadataService.populate(video);
+
+            await _videoMetadataRepository.updateVideoMetadata(id, video);
             Debug.WriteLine("user as service: " + updatedVideo.user.userName);
             return updatedVideo;
-        }
-
-        private string? GetCurrentUserId()
-        {
-            return _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? _httpContextAccessor.HttpContext?.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
         }
 
         private async Task<bool> IsOwnerAsync(int videoId)
         {
             var video = await _videoMetadataRepository.getVideoMetadataById(videoId);
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = _tokenClaimsAccessor.getLoggedInUserId();
 
-            if (video == null || string.IsNullOrEmpty(currentUserId))
+
+            if (video == null || currentUserId.HasValue)
                 return false;
 
-            return video.userId == Int32.Parse(currentUserId); ;
+            return video.userId == currentUserId.Value; ;
         }
     }
 }

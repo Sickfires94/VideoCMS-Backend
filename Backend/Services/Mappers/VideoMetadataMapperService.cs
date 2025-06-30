@@ -1,7 +1,9 @@
 ﻿using Backend.DTOs;
 using Backend.DTOs.RequestDtos;
 using Backend.DTOs.ResponseDtos;
+using Backend.DTOs.ResponseDtos.Categories;
 using Backend.Services.Mappers.Interfaces;
+using System.Diagnostics;
 
 namespace Backend.Services.Mappers
 {
@@ -24,15 +26,34 @@ namespace Backend.Services.Mappers
         
         public VideoMetadataResponseDto ToResponse(VideoMetadata entity)
         {
-            return new VideoMetadataResponseDto
+            CategoryResponseDto category = null;
+            List<TagResponseDto> tags = new List<TagResponseDto>();
+            string userName = entity.user?.userName ?? "";
+
+            Debug.WriteLine("Category Id: " + entity.categoryId);
+            Debug.WriteLine("Category Name: " + entity.category);
+
+            if (entity.category != null) 
+                category = _categoryMapperService.toResponse(entity.category);
+
+            if (entity.videoTags != null && entity.videoTags.Count > 0)
+                tags = entity.videoTags.Select(t => _tagMapperService.toResponse(t)).ToList();
+
+
+            VideoMetadataResponseDto response = new VideoMetadataResponseDto
             {
                 videoId = entity.videoId,
                 videoName = entity.videoName,
                 videoDescription = entity.videoDescription,
                 videoUrl = entity.videoUrl,
-                videoTags = entity.videoTags.Select(t => _tagMapperService.toResponse(t)).ToList(),
-                category =_categoryMapperService.toResponse(entity.category)
+                videoTags = tags,
+                category =category,
+                userName = userName
             };
+
+
+
+            return response;
         }
 
         

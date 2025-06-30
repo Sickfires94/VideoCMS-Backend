@@ -1,6 +1,6 @@
 ﻿using Backend.DTOs;
 using Backend.DTOs.RequestDtos;
-using Backend.DTOs.ResponseDtos;
+using Backend.DTOs.ResponseDtos.Categories;
 
 namespace Backend.Services.Mappers.Interfaces
 {

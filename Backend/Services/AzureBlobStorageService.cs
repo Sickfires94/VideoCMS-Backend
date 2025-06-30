@@ -3,10 +3,13 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
 using Backend.Configurations.DataConfigs;
 using Backend.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 
 namespace Backend.Services
 {
+
+    [Authorize]
     public class AzureBlobStorageService : IBlobStorageService
     {
         private readonly BlobContainerClient _blobContainerClient;
@@ -18,7 +21,7 @@ namespace Backend.Services
             _containerName = config.Value.ContainerName; // Get container name from config
         }
 
-        // --- Uploading a File ---
+        // Unused Methods, kept in-case of future need 
         public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType)
         {
             // Get a reference to a blob
@@ -89,16 +92,7 @@ namespace Backend.Services
             return sasUri.ToString(); // Return the full URI including the SAS token
         }
 
-        /// <summary>
-        /// Generates a Service SAS URI for downloading a specific blob.
-        /// The client will use this URI to directly download from Azure Blob Storage.
-        /// </summary>
-        /// <param name="fileName">The name of the blob to download.</param>
-        /// <param name="expiryMinutes">How long the SAS token should be valid for (e.g., 60 minutes).</param>
-        /// <returns>A string containing the full SAS URI for downloading.</returns>
-        /// <exception cref="FileNotFoundException">Thrown if the specified blob does not exist.</exception>
-        /// <exception cref="InvalidOperationException">Thrown if the BlobClient is not configured to generate SAS URIs.</exception>
-        public async Task<string> GenerateDownloadSasUriFromUrlAsync(string blobUrl, int expiryMinutes = 60)
+       public async Task<string> GenerateDownloadSasUriFromUrlAsync(string blobUrl, int expiryMinutes = 60)
         {
             if (string.IsNullOrWhiteSpace(blobUrl))
             {

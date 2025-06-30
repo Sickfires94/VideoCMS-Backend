@@ -15,6 +15,7 @@ namespace Backend.Controllers.VideoControllers
 
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class VideoMetadataController : ControllerBase
     {
         private readonly IVideoMetadataService _videoMetadataService;
@@ -29,21 +30,36 @@ namespace Backend.Controllers.VideoControllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> Get()
         {
-            Debug.WriteLine("Writing Log");
             _logger.LogInformation("Retrieving all videos");
-            return Ok(await _videoMetadataService.getAllVideoMetadata());
+            
+
+            IEnumerable<VideoMetadata> videos = await _videoMetadataService.getAllVideoMetadata();
+            IEnumerable<VideoMetadataResponseDto> response = videos.Select(v => _videoMetadataMapperService.ToResponse(v)).ToList();
+
+            return Ok(response);
         }
 
-        [Authorize]
+
         [HttpPost]
         public async Task<IActionResult> Post([FromBody] VideoMetadataRequestDto request)
         {
             VideoMetadata video = _videoMetadataMapperService.ToEntity(request);
-            return Ok(await _videoMetadataService.addVideoMetadata(video));
+
+            try
+            {
+                video = await _videoMetadataService.addVideoMetadata(video);
+            }
+            catch (UnauthorizedAccessException ex) 
+            {
+                return Unauthorized("User needs to be logged in to upload a video");
+            }
+            return Ok();
         }
 
+        [AllowAnonymous]
         [HttpGet("{videoId}")]
         public async Task<IActionResult> GetById(int videoId)
         {
@@ -58,7 +74,6 @@ namespace Backend.Controllers.VideoControllers
             return Ok(response);
         }
 
-        [Authorize]
         [HttpPost("{videoId}")]
         public async Task<IActionResult> UpdateVideoMetadata(int videoId, [FromBody] VideoMetadataRequestDto request)
         {
@@ -90,7 +105,6 @@ namespace Backend.Controllers.VideoControllers
             return Ok(response);
         }
 
-        [Authorize]
         [HttpDelete("{videoId}")]
         public async Task<IActionResult> Delete(int videoId)
         {

@@ -2,7 +2,7 @@
 {
     public class SearchVideoMetadataResponse
     {
-        public ICollection<VideoMetadataIndexDTO> items { get; set; } = new List<VideoMetadataIndexDTO>();
+        public ICollection<VideoMetadataIndexDTO> videos { get; set; } = new List<VideoMetadataIndexDTO>();
 
     }
 }

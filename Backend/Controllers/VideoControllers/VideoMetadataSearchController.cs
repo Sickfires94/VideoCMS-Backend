@@ -16,11 +16,16 @@ namespace Backend.Controllers.VideoControllers
 
         private readonly IVideoMetadataSearchService _searchService;
         private readonly ICategoryService _categoryService;
+        private readonly ILogger<VideoMetadataSearchController> _logger;
 
-        public VideoMetadataSearchController(IVideoMetadataSearchService searchService, ICategoryService categoryService)
+        public VideoMetadataSearchController(IVideoMetadataSearchService searchService, 
+            ICategoryService categoryService, 
+            ILogger<VideoMetadataSearchController> logger
+            )
         {
             _searchService = searchService;
             _categoryService = categoryService;
+            _logger = logger;
         }
 
         [HttpGet] // Now handles GET requests to the base route /api/video/search
@@ -32,9 +37,9 @@ namespace Backend.Controllers.VideoControllers
             if (categoryName != null) query_result = await _searchService.SearchVideoMetadataWithCategory(query, categoryName);
             else query_result = await _searchService.SearchVideoMetadata(query); // Assuming a more generic search method now
 
-            SearchVideoMetadataResponse response = new SearchVideoMetadataResponse{items =  query_result};
+            SearchVideoMetadataResponse response = new SearchVideoMetadataResponse{videos =  query_result};
 
-            Debug.WriteLine("Response items count" + response.items.Count);
+            _logger.LogInformation("Returning videos count:" + response.videos.Count);
             return Ok(response);
         }
 
